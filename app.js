@@ -74,6 +74,7 @@ function categoryLabel(code) {
 const listEl = document.getElementById("playerList");
 const warningEl = document.getElementById("warning");
 const resultEl = document.getElementById("result");
+const splitButton = document.getElementById("splitTeam");
 
 let nextId = 1;
 const players = [];
@@ -167,9 +168,7 @@ function applySportChange() {
     player.pos = null;
     rebuildChips(player);
   });
-  resultEl.hidden = true;
-  resultEl.innerHTML = "";
-  renderLegend();
+  clearResult();
 }
 
 function createPlayer() {
@@ -291,6 +290,11 @@ const POSITION_COUNT_WEIGHT = 3;
 const POSITION_STRENGTH_WEIGHT = 2;
 const KEEPERS_TOGETHER_PENALTY = 1e9;
 const EXACT_SEARCH_LIMIT = 20;
+const MAX_TIED_SPLITS = 200;
+const HEURISTIC_RESTARTS = 12;
+
+// Remembers the pairing on screen so the next split offers a different one.
+let lastSplitKey = "";
 
 function positionKey(player) {
   return player.pos || "none";
@@ -371,11 +375,23 @@ function teamsFromFlags(squad, flags) {
   return { teamA, teamB };
 }
 
+/**
+ * Two flag sets describe the same pairing when one is the other with the team
+ * labels swapped, so both normalise to the same key.
+ */
+function flagsKey(flags) {
+  const invert = flags[0] === 1;
+  let key = "";
+  for (let i = 0; i < flags.length; i++) key += invert ? flags[i] ^ 1 : flags[i];
+  return key;
+}
+
 /** Tries every legal division; only used for squads small enough to enumerate. */
 function exactSplit(squad, sizeA, ratings, categories, keeperTotal, keyCount, keeperIndex) {
   const n = squad.length;
   const flags = new Uint8Array(n);
-  let bestFlags = null;
+  const best = [];
+  const seen = new Set();
   let bestCost = Infinity;
 
   for (let mask = 0; mask < 1 << n; mask++) {
@@ -386,60 +402,96 @@ function exactSplit(squad, sizeA, ratings, categories, keeperTotal, keyCount, ke
     for (let i = 0; i < n; i++) flags[i] = (mask >> i) & 1;
 
     const cost = scoreFlags(flags, ratings, categories, keeperTotal, keyCount, keeperIndex);
+    if (cost > bestCost) continue;
     if (cost < bestCost) {
       bestCost = cost;
-      bestFlags = Uint8Array.from(flags);
+      best.length = 0;
+      seen.clear();
     }
+    const key = flagsKey(flags);
+    if (seen.has(key) || best.length >= MAX_TIED_SPLITS) continue;
+    seen.add(key);
+    best.push(Uint8Array.from(flags));
   }
 
-  return bestFlags;
+  return best;
 }
 
-/** Greedy start plus swap hill-climbing, for squads too large to enumerate. */
+/**
+ * Greedy start plus swap hill-climbing, for squads too large to enumerate.
+ * Each restart shuffles players of equal rating, so repeated runs settle on
+ * different arrangements of the same quality.
+ */
 function heuristicSplit(squad, sizeA, ratings, categories, keeperTotal, keyCount, keeperIndex) {
   const n = squad.length;
-  const flags = new Uint8Array(n).fill(1);
+  const best = [];
+  const seen = new Set();
+  let bestCost = Infinity;
 
-  const order = squad
-    .map((player, index) => ({ index, rating: player.rating }))
-    .sort((a, b) => b.rating - a.rating);
+  for (let restart = 0; restart < HEURISTIC_RESTARTS; restart++) {
+    const flags = new Uint8Array(n).fill(1);
+    const order = squad
+      .map((player, index) => ({ index, rating: player.rating, tie: Math.random() }))
+      .sort((a, b) => b.rating - a.rating || a.tie - b.tie);
 
-  let filled = 0;
-  order.forEach((entry, position) => {
-    if (position % 2 === 0 && filled < sizeA) {
-      flags[entry.index] = 0;
-      filled += 1;
+    let filled = 0;
+    order.forEach((entry, position) => {
+      if (position % 2 === 0 && filled < sizeA) {
+        flags[entry.index] = 0;
+        filled += 1;
+      }
+    });
+    for (let i = 0; i < n && filled < sizeA; i++) {
+      if (flags[i]) {
+        flags[i] = 0;
+        filled += 1;
+      }
     }
-  });
-  for (let i = 0; i < n && filled < sizeA; i++) {
-    if (flags[i]) {
-      flags[i] = 0;
-      filled += 1;
-    }
-  }
 
-  let current = scoreFlags(flags, ratings, categories, keeperTotal, keyCount, keeperIndex);
-  let improved = true;
-  while (improved) {
-    improved = false;
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        if (flags[i] === flags[j]) continue;
-        flags[i] ^= 1;
-        flags[j] ^= 1;
-        const candidate = scoreFlags(flags, ratings, categories, keeperTotal, keyCount, keeperIndex);
-        if (candidate < current) {
-          current = candidate;
-          improved = true;
-        } else {
+    let current = scoreFlags(flags, ratings, categories, keeperTotal, keyCount, keeperIndex);
+    let improved = true;
+    while (improved) {
+      improved = false;
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          if (flags[i] === flags[j]) continue;
           flags[i] ^= 1;
           flags[j] ^= 1;
+          const candidate = scoreFlags(flags, ratings, categories, keeperTotal, keyCount, keeperIndex);
+          if (candidate < current) {
+            current = candidate;
+            improved = true;
+          } else {
+            flags[i] ^= 1;
+            flags[j] ^= 1;
+          }
         }
       }
     }
+
+    if (current > bestCost) continue;
+    if (current < bestCost) {
+      bestCost = current;
+      best.length = 0;
+      seen.clear();
+    }
+    const key = flagsKey(flags);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    best.push(flags);
   }
 
-  return flags;
+  return best;
+}
+
+/** Prefers a pairing the player has not just seen, so a re-split looks new. */
+function pickSplit(candidates) {
+  if (!candidates.length) return null;
+  const fresh = candidates.filter((flags) => flagsKey(flags) !== lastSplitKey);
+  const pool = fresh.length ? fresh : candidates;
+  const chosen = pool[Math.floor(Math.random() * pool.length)];
+  lastSplitKey = flagsKey(chosen);
+  return chosen;
 }
 
 /**
@@ -461,10 +513,11 @@ function splitTeams(squad) {
     return index === -1 ? keys.length - 1 : index;
   });
 
-  const flags =
+  const candidates =
     squad.length <= EXACT_SEARCH_LIMIT
       ? exactSplit(squad, sizeA, ratings, categories, keeperTotal, keys.length, keeperIndex)
       : heuristicSplit(squad, sizeA, ratings, categories, keeperTotal, keys.length, keeperIndex);
+  const flags = pickSplit(candidates);
 
   if (!flags) {
     return { teamA: squad.slice(0, sizeA), teamB: squad.slice(sizeA) };
@@ -537,10 +590,20 @@ function renderResult() {
 
   resultEl.innerHTML =
     teamMarkup("Team A", "a", teamA) +
+    `<button type="button" id="closeResult" class="result-close" aria-label="Close split teams">&#10005;</button>` +
     teamMarkup("Team B", "b", teamB) +
     `<p class="result-note">${note}</p>`;
   resultEl.hidden = false;
+  legendEl.hidden = true;
+  splitButton.disabled = true;
   resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function clearResult() {
+  resultEl.hidden = true;
+  resultEl.innerHTML = "";
+  splitButton.disabled = false;
+  renderLegend();
 }
 
 const sportSelect = document.getElementById("sportSelect");
@@ -618,11 +681,29 @@ document.addEventListener("click", (event) => {
   if (!sportSelect.contains(event.target)) closeSportMenu();
 });
 
+const avatarButton = document.getElementById("avatarButton");
+const photoOverlay = document.getElementById("photoOverlay");
+
+avatarButton.addEventListener("click", () => {
+  photoOverlay.hidden = false;
+});
+
+photoOverlay.addEventListener("click", (event) => {
+  if (event.target === photoOverlay) photoOverlay.hidden = true;
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") photoOverlay.hidden = true;
+});
+
 document.getElementById("addPlayer").addEventListener("click", () => {
   const player = createPlayer();
   player.input.focus();
 });
-document.getElementById("splitTeam").addEventListener("click", renderResult);
+splitButton.addEventListener("click", renderResult);
+resultEl.addEventListener("click", (event) => {
+  if (event.target.closest("#closeResult")) clearResult();
+});
 
 createPlayer();
 createPlayer();

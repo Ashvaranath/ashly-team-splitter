@@ -8,7 +8,12 @@
 </head>
 <body>
   <main class="page">
-    <h1 class="page-title">Ashly Team Splitter</h1>
+    <header class="page-header">
+      <button type="button" id="avatarButton" class="avatar" aria-label="Open photo">
+        <img src="icons/profile.jpg" alt="Ashly" />
+      </button>
+      <h1 class="page-title">Ashly Team Splitter</h1>
+    </header>
 
     <div class="sport-bar">
       <div class="sport-select" id="sportSelect">
@@ -42,6 +47,10 @@
 
     <aside id="legend" class="legend" aria-label="Category abbreviations"></aside>
   </main>
+
+  <div id="photoOverlay" class="photo-overlay" role="dialog" aria-modal="true" aria-label="Photo" hidden>
+    <img src="icons/profile.jpg" alt="Ashly" />
+  </div>
 
   <script src="app.js"></script>
 </body>
