@@ -1,9 +1,75 @@
-const POSITIONS = ["GK", "D", "M", "F"];
 const MAX_NAME = 10;
 const MIN_RATING = 1;
 const MAX_RATING = 5;
 const DEFAULT_RATING = 3;
-const MAX_GOALKEEPERS = 2;
+const MAX_KEEPERS = 2;
+
+const SPORTS = [
+  {
+    id: "football",
+    name: "Football",
+    icon: `<img src="icons/football.png" alt="">`,
+    keeperCode: "GK",
+    keeperWarning: "Already 2 Goal keepers are selected",
+    categories: [
+      { code: "GK", label: "Goal Keeper" },
+      { code: "D", label: "Defender" },
+      { code: "M", label: "Mid field" },
+      { code: "F", label: "Forward" },
+    ],
+  },
+  {
+    id: "cricket",
+    name: "Cricket",
+    icon: `<img src="icons/cricket.png" alt="">`,
+    keeperCode: "WK",
+    keeperWarning: "Already 2 Wicket keepers are selected",
+    categories: [
+      { code: "WK", label: "WicketKeeper" },
+      { code: "BT", label: "Batsmen" },
+      { code: "BL", label: "Bowler" },
+      { code: "AL", label: "Alrounder" },
+    ],
+  },
+  {
+    id: "volleyball",
+    name: "Volleyball",
+    icon: `<img src="icons/volleyball.png" alt="">`,
+    keeperCode: null,
+    keeperWarning: "",
+    categories: [
+      { code: "SM", label: "Smasher" },
+      { code: "ST", label: "Setter" },
+    ],
+  },
+  {
+    id: "badminton",
+    name: "Badminton",
+    icon: `<img src="icons/badminton.png" alt="">`,
+    keeperCode: null,
+    keeperWarning: "",
+    categories: [],
+  },
+];
+
+let selectedSport = SPORTS[0];
+
+function currentCategories() {
+  return selectedSport.categories;
+}
+
+function currentCodes() {
+  return currentCategories().map((item) => item.code);
+}
+
+function positionKeys() {
+  return [...currentCodes(), "none"];
+}
+
+function categoryLabel(code) {
+  const match = currentCategories().find((item) => item.code === code);
+  return match ? match.label : code;
+}
 
 const listEl = document.getElementById("playerList");
 const warningEl = document.getElementById("warning");
@@ -22,8 +88,10 @@ function showWarning(message) {
   }, 3000);
 }
 
-function goalkeeperCount(excludeId) {
-  return players.filter((p) => p.pos === "GK" && p.id !== excludeId).length;
+function keeperCount(excludeId) {
+  const code = selectedSport.keeperCode;
+  if (!code) return 0;
+  return players.filter((p) => p.pos === code && p.id !== excludeId).length;
 }
 
 function updateChips(player) {
@@ -34,8 +102,10 @@ function updateChips(player) {
     chip.setAttribute("aria-pressed", String(selected));
     chip.hidden = !showAll && !selected;
   });
-  player.positionsEl.hidden = !showAll && player.pos === null;
+  player.positionsEl.hidden =
+    currentCodes().length === 0 || (!showAll && player.pos === null);
   player.row.classList.toggle("has-pos", player.pos !== null);
+  player.row.dataset.chipCount = String(currentCodes().length);
 }
 
 function updateRating(player) {
@@ -52,6 +122,54 @@ function renumberPlaceholders() {
   players.forEach((player, index) => {
     player.input.placeholder = `player${index + 1}`;
   });
+}
+
+function bindChip(player, chip, category) {
+  chip.addEventListener("click", () => {
+    if (player.pos === category.code) {
+      player.pos = null;
+    } else {
+      if (
+        selectedSport.keeperCode &&
+        category.code === selectedSport.keeperCode &&
+        keeperCount(player.id) >= MAX_KEEPERS
+      ) {
+        showWarning(selectedSport.keeperWarning);
+        return;
+      }
+      player.pos = category.code;
+    }
+    updateChips(player);
+  });
+}
+
+function rebuildChips(player) {
+  player.positionsEl.replaceChildren();
+  player.chips = currentCategories().map((category) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "pos";
+    chip.dataset.pos = category.code;
+    chip.textContent = category.code;
+    chip.title = category.label;
+    bindChip(player, chip, category);
+    player.positionsEl.appendChild(chip);
+    return chip;
+  });
+  if (player.pos && !currentCodes().includes(player.pos)) {
+    player.pos = null;
+  }
+  updateChips(player);
+}
+
+function applySportChange() {
+  players.forEach((player) => {
+    player.pos = null;
+    rebuildChips(player);
+  });
+  resultEl.hidden = true;
+  resultEl.innerHTML = "";
+  renderLegend();
 }
 
 function createPlayer() {
@@ -74,30 +192,6 @@ function createPlayer() {
 
   const positionsEl = document.createElement("div");
   positionsEl.className = "positions";
-
-  const chips = POSITIONS.map((pos) => {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "pos";
-    chip.dataset.pos = pos;
-    chip.textContent = pos;
-    chip.title = { GK: "Goalkeeper", D: "Defender", M: "Midfielder", F: "Forward" }[pos];
-    chip.addEventListener("click", () => {
-      if (player.pos === pos) {
-        player.pos = null;
-      } else {
-        if (pos === "GK" && goalkeeperCount(player.id) >= MAX_GOALKEEPERS) {
-          showWarning("Already 2 Goal keepers are selected");
-          return;
-        }
-        player.pos = pos;
-      }
-      updateChips(player);
-    });
-    positionsEl.appendChild(chip);
-    return chip;
-  });
-
   nameCell.append(input, positionsEl);
 
   row.addEventListener("focusin", () => {
@@ -163,7 +257,7 @@ function createPlayer() {
     row,
     input,
     positionsEl,
-    chips,
+    chips: [],
     pips,
     valueEl: value,
     minusEl: minus,
@@ -173,8 +267,8 @@ function createPlayer() {
   players.push(player);
   listEl.appendChild(row);
 
+  rebuildChips(player);
   updateRating(player);
-  updateChips(player);
   renumberPlaceholders();
 
   return player;
@@ -196,16 +290,22 @@ const STRENGTH_PRIORITY = 100000;
 const POSITION_COUNT_WEIGHT = 3;
 const POSITION_STRENGTH_WEIGHT = 2;
 const KEEPERS_TOGETHER_PENALTY = 1e9;
-const POSITION_KEYS = [...POSITIONS, "none"];
-const GK_INDEX = POSITION_KEYS.indexOf("GK");
 const EXACT_SEARCH_LIMIT = 20;
 
 function positionKey(player) {
   return player.pos || "none";
 }
 
+function emptyCategoryMap() {
+  const map = { none: 0 };
+  currentCodes().forEach((code) => {
+    map[code] = 0;
+  });
+  return map;
+}
+
 function countPositions(team) {
-  const counts = { GK: 0, D: 0, M: 0, F: 0, none: 0 };
+  const counts = emptyCategoryMap();
   team.forEach((player) => {
     counts[positionKey(player)] += 1;
   });
@@ -213,7 +313,7 @@ function countPositions(team) {
 }
 
 function strengthByPosition(team) {
-  const sums = { GK: 0, D: 0, M: 0, F: 0, none: 0 };
+  const sums = emptyCategoryMap();
   team.forEach((player) => {
     sums[positionKey(player)] += player.rating;
   });
@@ -221,13 +321,13 @@ function strengthByPosition(team) {
 }
 
 /** flags[i] === 1 puts player i on team B, 0 puts them on team A. */
-function scoreFlags(flags, ratings, categories, keeperTotal) {
+function scoreFlags(flags, ratings, categories, keeperTotal, keyCount, keeperIndex) {
   let strengthA = 0;
   let strengthB = 0;
-  const countA = [0, 0, 0, 0, 0];
-  const countB = [0, 0, 0, 0, 0];
-  const catStrengthA = [0, 0, 0, 0, 0];
-  const catStrengthB = [0, 0, 0, 0, 0];
+  const countA = new Array(keyCount).fill(0);
+  const countB = new Array(keyCount).fill(0);
+  const catStrengthA = new Array(keyCount).fill(0);
+  const catStrengthB = new Array(keyCount).fill(0);
 
   for (let i = 0; i < flags.length; i++) {
     const category = categories[i];
@@ -244,15 +344,18 @@ function scoreFlags(flags, ratings, categories, keeperTotal) {
   }
 
   let categoryCost = 0;
-  for (let c = 0; c < POSITION_KEYS.length; c++) {
+  for (let c = 0; c < keyCount; c++) {
     categoryCost += Math.abs(countA[c] - countB[c]) * POSITION_COUNT_WEIGHT;
     categoryCost += Math.abs(catStrengthA[c] - catStrengthB[c]) * POSITION_STRENGTH_WEIGHT;
   }
 
   let cost = Math.abs(strengthA - strengthB) * STRENGTH_PRIORITY + categoryCost;
 
-  // Two keepers must never end up on the same team.
-  if (keeperTotal === MAX_GOALKEEPERS && (countA[GK_INDEX] === 0 || countB[GK_INDEX] === 0)) {
+  if (
+    keeperIndex >= 0 &&
+    keeperTotal === MAX_KEEPERS &&
+    (countA[keeperIndex] === 0 || countB[keeperIndex] === 0)
+  ) {
     cost += KEEPERS_TOGETHER_PENALTY;
   }
 
@@ -269,7 +372,7 @@ function teamsFromFlags(squad, flags) {
 }
 
 /** Tries every legal division; only used for squads small enough to enumerate. */
-function exactSplit(squad, sizeA, ratings, categories, keeperTotal) {
+function exactSplit(squad, sizeA, ratings, categories, keeperTotal, keyCount, keeperIndex) {
   const n = squad.length;
   const flags = new Uint8Array(n);
   let bestFlags = null;
@@ -282,7 +385,7 @@ function exactSplit(squad, sizeA, ratings, categories, keeperTotal) {
 
     for (let i = 0; i < n; i++) flags[i] = (mask >> i) & 1;
 
-    const cost = scoreFlags(flags, ratings, categories, keeperTotal);
+    const cost = scoreFlags(flags, ratings, categories, keeperTotal, keyCount, keeperIndex);
     if (cost < bestCost) {
       bestCost = cost;
       bestFlags = Uint8Array.from(flags);
@@ -293,7 +396,7 @@ function exactSplit(squad, sizeA, ratings, categories, keeperTotal) {
 }
 
 /** Greedy start plus swap hill-climbing, for squads too large to enumerate. */
-function heuristicSplit(squad, sizeA, ratings, categories, keeperTotal) {
+function heuristicSplit(squad, sizeA, ratings, categories, keeperTotal, keyCount, keeperIndex) {
   const n = squad.length;
   const flags = new Uint8Array(n).fill(1);
 
@@ -315,7 +418,7 @@ function heuristicSplit(squad, sizeA, ratings, categories, keeperTotal) {
     }
   }
 
-  let current = scoreFlags(flags, ratings, categories, keeperTotal);
+  let current = scoreFlags(flags, ratings, categories, keeperTotal, keyCount, keeperIndex);
   let improved = true;
   while (improved) {
     improved = false;
@@ -324,7 +427,7 @@ function heuristicSplit(squad, sizeA, ratings, categories, keeperTotal) {
         if (flags[i] === flags[j]) continue;
         flags[i] ^= 1;
         flags[j] ^= 1;
-        const candidate = scoreFlags(flags, ratings, categories, keeperTotal);
+        const candidate = scoreFlags(flags, ratings, categories, keeperTotal, keyCount, keeperIndex);
         if (candidate < current) {
           current = candidate;
           improved = true;
@@ -346,14 +449,22 @@ function heuristicSplit(squad, sizeA, ratings, categories, keeperTotal) {
  */
 function splitTeams(squad) {
   const sizeA = Math.floor(squad.length / 2);
-  const keeperTotal = squad.filter((player) => player.pos === "GK").length;
+  const keys = positionKeys();
+  const keeperCode = selectedSport.keeperCode;
+  const keeperIndex = keeperCode ? keys.indexOf(keeperCode) : -1;
+  const keeperTotal = keeperCode
+    ? squad.filter((player) => player.pos === keeperCode).length
+    : 0;
   const ratings = squad.map((player) => player.rating);
-  const categories = squad.map((player) => POSITION_KEYS.indexOf(positionKey(player)));
+  const categories = squad.map((player) => {
+    const index = keys.indexOf(positionKey(player));
+    return index === -1 ? keys.length - 1 : index;
+  });
 
   const flags =
     squad.length <= EXACT_SEARCH_LIMIT
-      ? exactSplit(squad, sizeA, ratings, categories, keeperTotal)
-      : heuristicSplit(squad, sizeA, ratings, categories, keeperTotal);
+      ? exactSplit(squad, sizeA, ratings, categories, keeperTotal, keys.length, keeperIndex)
+      : heuristicSplit(squad, sizeA, ratings, categories, keeperTotal, keys.length, keeperIndex);
 
   if (!flags) {
     return { teamA: squad.slice(0, sizeA), teamB: squad.slice(sizeA) };
@@ -366,7 +477,8 @@ function teamMarkup(title, side, team) {
   const strength = team.reduce((sum, p) => sum + p.rating, 0);
   const counts = countPositions(team);
   const catStrength = strengthByPosition(team);
-  const breakdown = POSITIONS.filter((pos) => counts[pos] > 0)
+  const breakdown = currentCodes()
+    .filter((pos) => counts[pos] > 0)
     .map((pos) => `${pos} ${counts[pos]} (${catStrength[pos]})`)
     .join(" &middot; ");
   const rows = team
@@ -406,7 +518,8 @@ function renderResult() {
   const countsB = countPositions(teamB);
   const catStrengthA = strengthByPosition(teamA);
   const catStrengthB = strengthByPosition(teamB);
-  const positionGap = POSITION_KEYS.reduce(
+  const keys = positionKeys();
+  const positionGap = keys.reduce(
     (total, key) =>
       total +
       Math.abs(countsA[key] - countsB[key]) +
@@ -430,19 +543,28 @@ function renderResult() {
   resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-const SPORTS = [
-  { id: "football", name: "Football", icon: `<img src="icons/football.png" alt="">` },
-  { id: "cricket", name: "Cricket", icon: `<img src="icons/cricket.png" alt="">` },
-  { id: "volleyball", name: "Volleyball", icon: `<img src="icons/volleyball.png" alt="">` },
-  { id: "badminton", name: "Badminton", icon: `<img src="icons/badminton.png" alt="">` },
-];
-
-let selectedSport = SPORTS[0];
 const sportSelect = document.getElementById("sportSelect");
 const sportTrigger = document.getElementById("sportTrigger");
 const sportMenu = document.getElementById("sportMenu");
 const sportIcon = document.getElementById("sportIcon");
 const sportLabel = document.getElementById("sportLabel");
+const legendEl = document.getElementById("legend");
+
+function renderLegend() {
+  const cats = currentCategories();
+  if (!cats.length) {
+    legendEl.innerHTML = "";
+    legendEl.hidden = true;
+    return;
+  }
+  legendEl.hidden = false;
+  legendEl.innerHTML = cats
+    .map(
+      (item) =>
+        `<div class="legend-row"><span class="pos selected" data-pos="${item.code}">${item.code}</span><span class="legend-text">${item.label}</span></div>`
+    )
+    .join("");
+}
 
 function renderSportTrigger() {
   sportIcon.innerHTML = selectedSport.icon;
@@ -475,6 +597,7 @@ SPORTS.forEach((sport) => {
       btn.setAttribute("aria-selected", String(btn.dataset.id === sport.id));
     });
     renderSportTrigger();
+    applySportChange();
     closeSportMenu();
   });
   item.appendChild(option);
@@ -483,6 +606,7 @@ SPORTS.forEach((sport) => {
 
 sportMenu.querySelector(`[data-id="${selectedSport.id}"]`).setAttribute("aria-selected", "true");
 renderSportTrigger();
+renderLegend();
 
 sportTrigger.addEventListener("click", (event) => {
   event.stopPropagation();
