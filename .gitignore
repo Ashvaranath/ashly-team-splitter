@@ -1,0 +1,10 @@
+.gradle/
+android/.gradle/
+android/**/build/
+android/local.properties
+android/.idea/
+*.apk
+deploy.zip
+deploy/
+palettes.html
+serve.js

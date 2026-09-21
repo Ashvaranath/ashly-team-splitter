@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ashly Team Splitter</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="page">
+    <h1 class="page-title">Ashly Team Splitter</h1>
+
+    <div class="sport-bar">
+      <div class="sport-select" id="sportSelect">
+        <button type="button" class="sport-trigger" id="sportTrigger" aria-haspopup="listbox" aria-expanded="false">
+          <span class="sport-icon" id="sportIcon"></span>
+          <span class="sport-label" id="sportLabel">Football</span>
+          <span class="sport-caret" aria-hidden="true"></span>
+        </button>
+        <ul class="sport-menu" id="sportMenu" role="listbox" hidden></ul>
+      </div>
+    </div>
+
+    <section class="card">
+      <div class="list-head">
+        <span class="col-players">Players</span>
+        <span class="col-rating">Rating</span>
+        <span class="col-actions"></span>
+      </div>
+
+      <div id="playerList" class="player-list"></div>
+
+      <p id="warning" class="warning" role="alert" aria-live="polite" hidden></p>
+
+      <div class="actions">
+        <button id="addPlayer" type="button" class="btn btn-ghost">+ Add Player</button>
+        <button id="splitTeam" type="button" class="btn btn-primary">Split Team</button>
+      </div>
+    </section>
+
+    <section id="result" class="result" hidden></section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
