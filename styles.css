@@ -701,6 +701,140 @@ body {
   transform: scale(0.96);
 }
 
+/* Closing sequence: shiver, flash white, swallow the teams, then fade away. */
+@keyframes close-shiver {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  15% {
+    transform: translateX(-2.5px) rotate(-7deg);
+  }
+  30% {
+    transform: translateX(2.5px) rotate(7deg);
+  }
+  45% {
+    transform: translateX(-2px) rotate(-5deg);
+  }
+  60% {
+    transform: translateX(2px) rotate(5deg);
+  }
+  75% {
+    transform: translateX(-1.5px) rotate(-3deg);
+  }
+  90% {
+    transform: translateX(1.5px) rotate(3deg);
+  }
+}
+
+.result-close.is-shivering {
+  animation: close-shiver 1s linear;
+}
+
+/* White face that fades over the glass and hides the icon while charged. */
+.result-close::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  background: #ffffff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+/* Reveal seed: an invisible white dot waiting to grow. */
+.result-close.is-seed {
+  transform: scale(0);
+  box-shadow: none;
+}
+
+.result-close.is-charged,
+.result-close.is-grown {
+  transform: scale(1.18);
+  box-shadow:
+    0 0 0 6px rgba(255, 255, 255, 0.6),
+    0 0 26px 10px rgba(190, 248, 255, 0.95),
+    0 0 58px 22px rgba(0, 229, 255, 0.55);
+}
+
+.result-close.is-seed::after,
+.result-close.is-charged::after,
+.result-close.is-grown::after {
+  opacity: 1;
+}
+
+.result-close.is-charged {
+  transition: box-shadow 0.22s ease, transform 0.22s ease;
+}
+
+.result-close.is-grown {
+  transition: transform 0.45s cubic-bezier(0.2, 1.35, 0.45, 1), box-shadow 0.4s ease;
+}
+
+/* Settling back into the dark glass button, icon fading in. */
+.result-close.is-settling {
+  transition: box-shadow 0.5s ease, transform 0.35s ease;
+}
+
+.result-close.is-settling::after {
+  transition: opacity 0.45s ease;
+}
+
+.result-close.is-vanishing {
+  transform: scale(0);
+  opacity: 0;
+  box-shadow: none;
+  transition: transform 0.6s ease-in, opacity 0.6s ease-in, box-shadow 0.4s ease;
+}
+
+.result.is-absorbing .team {
+  opacity: 0;
+  transition: transform 0.45s cubic-bezier(0.55, -0.05, 0.75, 0.2), opacity 0.45s ease-in;
+}
+
+.result.is-absorbing .team-a {
+  transform-origin: right center;
+  transform: translateX(28px) scale(0.04);
+}
+
+.result.is-absorbing .team-b {
+  transform-origin: left center;
+  transform: translateX(-28px) scale(0.04);
+}
+
+.result.is-absorbing .result-note {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Reveal: the cards start hidden inside the button, then fly out of it. */
+.result.is-revealing .team,
+.result.is-revealing .result-note {
+  opacity: 0;
+}
+
+.result.is-revealing .team-a {
+  transform-origin: right center;
+  transform: translateX(28px) scale(0.04);
+}
+
+.result.is-revealing .team-b {
+  transform-origin: left center;
+  transform: translateX(-28px) scale(0.04);
+}
+
+.result.is-emerging .team {
+  opacity: 1;
+  transform: none;
+  transition: transform 0.55s cubic-bezier(0.2, 0.9, 0.25, 1), opacity 0.4s ease-out;
+}
+
+.result.is-emerging .result-note {
+  opacity: 1;
+  transition: opacity 0.4s ease-out 0.25s;
+}
+
 .team {
   border-radius: 16px;
   padding: 16px 18px;
@@ -878,6 +1012,23 @@ body {
 
   .result-close {
     justify-self: center;
+  }
+
+  /* Stacked layout: the button sits above and below the cards, not beside. */
+  .result.is-absorbing .team-a,
+  .result.is-revealing .team-a {
+    transform-origin: bottom center;
+    transform: translateY(18px) scale(0.04);
+  }
+
+  .result.is-absorbing .team-b,
+  .result.is-revealing .team-b {
+    transform-origin: top center;
+    transform: translateY(-18px) scale(0.04);
+  }
+
+  .result.is-emerging .team {
+    transform: none;
   }
 
   .list-head,

@@ -293,6 +293,19 @@ const EXACT_SEARCH_LIMIT = 20;
 const MAX_TIED_SPLITS = 200;
 const HEURISTIC_RESTARTS = 12;
 
+// Stages of the close animation, in the order they play.
+const CLOSE_SHIVER_MS = 1000;
+const CLOSE_CHARGE_MS = 260;
+const CLOSE_ABSORB_MS = 450;
+const CLOSE_VANISH_MS = 600;
+
+// The reveal runs the same stages backwards: dot grows, then shivers while
+// the teams fly out and the button settles back into dark glass.
+const REVEAL_GROW_MS = 450;
+const REVEAL_SETTLE_MS = 1000;
+
+let animationTimers = [];
+
 // Remembers the pairing on screen so the next split offers a different one.
 let lastSplitKey = "";
 
@@ -596,14 +609,74 @@ function renderResult() {
   resultEl.hidden = false;
   legendEl.hidden = true;
   splitButton.disabled = true;
+  revealResultWithAnimation();
   resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
+function queueStage(step, delay) {
+  animationTimers.push(window.setTimeout(step, delay));
+}
+
+function stopStages() {
+  animationTimers.forEach(window.clearTimeout);
+  animationTimers = [];
+}
+
+/** Reverse of the close: a white dot grows, shivers, and spits out the teams. */
+function revealResultWithAnimation() {
+  const button = resultEl.querySelector("#closeResult");
+  if (!button) return;
+
+  stopStages();
+  resultEl.classList.add("is-revealing");
+  button.classList.add("is-seed");
+  void button.offsetWidth;
+  button.classList.add("is-grown");
+
+  queueStage(() => {
+    button.classList.remove("is-seed", "is-grown");
+    button.classList.add("is-settling", "is-shivering");
+    resultEl.classList.add("is-emerging");
+
+    queueStage(() => {
+      button.classList.remove("is-settling", "is-shivering");
+      resultEl.classList.remove("is-revealing", "is-emerging");
+    }, REVEAL_SETTLE_MS);
+  }, REVEAL_GROW_MS);
+}
+
 function clearResult() {
+  stopStages();
+  resultEl.classList.remove("is-closing", "is-absorbing", "is-revealing", "is-emerging");
   resultEl.hidden = true;
   resultEl.innerHTML = "";
   splitButton.disabled = false;
   renderLegend();
+}
+
+/** Shiver, flash white, pull both team cards into the button, then fade out. */
+function closeResultWithAnimation(button) {
+  if (resultEl.classList.contains("is-closing")) return;
+
+  stopStages();
+  resultEl.classList.remove("is-revealing", "is-emerging");
+  button.classList.remove("is-seed", "is-grown", "is-settling");
+  resultEl.classList.add("is-closing");
+  button.classList.add("is-shivering");
+
+  queueStage(() => {
+    button.classList.remove("is-shivering");
+    button.classList.add("is-charged");
+
+    queueStage(() => {
+      resultEl.classList.add("is-absorbing");
+
+      queueStage(() => {
+        button.classList.add("is-vanishing");
+        queueStage(clearResult, CLOSE_VANISH_MS);
+      }, CLOSE_ABSORB_MS);
+    }, CLOSE_CHARGE_MS);
+  }, CLOSE_SHIVER_MS);
 }
 
 const sportSelect = document.getElementById("sportSelect");
@@ -702,7 +775,8 @@ document.getElementById("addPlayer").addEventListener("click", () => {
 });
 splitButton.addEventListener("click", renderResult);
 resultEl.addEventListener("click", (event) => {
-  if (event.target.closest("#closeResult")) clearResult();
+  const closeButton = event.target.closest("#closeResult");
+  if (closeButton) closeResultWithAnimation(closeButton);
 });
 
 createPlayer();
