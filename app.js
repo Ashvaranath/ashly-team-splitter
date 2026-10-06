@@ -228,6 +228,9 @@ function createPlayer() {
   row.addEventListener("focusin", () => {
     row.classList.add("focused");
     updateChips(player);
+    if (document.activeElement === input) {
+      setTimeout(() => input.scrollIntoView({ block: "center", inline: "nearest" }), 300);
+    }
   });
   row.addEventListener("focusout", (event) => {
     if (row.contains(event.relatedTarget)) return;

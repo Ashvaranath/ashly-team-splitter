@@ -44,6 +44,11 @@ body[data-sport="badminton"] {
   --mood-glow: rgba(16, 185, 129, 0.32);
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -544,7 +549,7 @@ body::before {
   border: 1px solid var(--input-stroke);
   background: var(--input);
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
   outline: none;
 }
 
