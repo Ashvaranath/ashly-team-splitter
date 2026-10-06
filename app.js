@@ -8,7 +8,8 @@ const SPORTS = [
   {
     id: "football",
     name: "Football",
-    icon: `<img src="icons/football.png" alt="">`,
+    iconSrc: "icons/football.png",
+    tagline: "Fair squads. Match-ready in seconds.",
     keeperCode: "GK",
     keeperWarning: "Already 2 Goal keepers are selected",
     categories: [
@@ -21,7 +22,8 @@ const SPORTS = [
   {
     id: "cricket",
     name: "Cricket",
-    icon: `<img src="icons/cricket.png" alt="">`,
+    iconSrc: "icons/cricket.png",
+    tagline: "Balance the batting. Split the sides.",
     keeperCode: "WK",
     keeperWarning: "Already 2 Wicket keepers are selected",
     categories: [
@@ -34,7 +36,8 @@ const SPORTS = [
   {
     id: "volleyball",
     name: "Volleyball",
-    icon: `<img src="icons/volleyball.png" alt="">`,
+    iconSrc: "icons/volleyball.png",
+    tagline: "Even teams. Clean rotations.",
     keeperCode: null,
     keeperWarning: "",
     categories: [
@@ -45,7 +48,8 @@ const SPORTS = [
   {
     id: "badminton",
     name: "Badminton",
-    icon: `<img src="icons/badminton.png" alt="">`,
+    iconSrc: "icons/badminton.png",
+    tagline: "Quick pairs. Fair courts.",
     keeperCode: null,
     keeperWarning: "",
     categories: [],
@@ -66,15 +70,21 @@ function positionKeys() {
   return [...currentCodes(), "none"];
 }
 
-function categoryLabel(code) {
-  const match = currentCategories().find((item) => item.code === code);
-  return match ? match.label : code;
-}
-
 const listEl = document.getElementById("playerList");
 const warningEl = document.getElementById("warning");
 const resultEl = document.getElementById("result");
 const splitButton = document.getElementById("splitTeam");
+const legendEl = document.getElementById("legend");
+const watermarkEl = document.getElementById("sportWatermark");
+const taglineEl = document.getElementById("sportTagline");
+const matchSceneEl = document.getElementById("matchScene");
+const impactEl = document.getElementById("footballImpact");
+const cricketSceneEl = document.getElementById("cricketScene");
+const cricketImpactEl = document.getElementById("cricketImpact");
+const volleySceneEl = document.getElementById("volleyScene");
+const volleyImpactEl = document.getElementById("volleyImpact");
+const badmintonSceneEl = document.getElementById("badmintonScene");
+const badmintonImpactEl = document.getElementById("badmintonImpact");
 
 let nextId = 1;
 const players = [];
@@ -163,11 +173,33 @@ function rebuildChips(player) {
   updateChips(player);
 }
 
+/** Show only the selected sport's scene while no split is on screen. */
+function syncSportScenes() {
+  matchSceneEl.classList.remove("is-playing");
+  cricketSceneEl.classList.remove("is-playing");
+  volleySceneEl.classList.remove("is-playing");
+  badmintonSceneEl.classList.remove("is-playing");
+  matchSceneEl.hidden = selectedSport.id !== "football" || !resultEl.hidden;
+  cricketSceneEl.hidden = selectedSport.id !== "cricket" || !resultEl.hidden;
+  volleySceneEl.hidden = selectedSport.id !== "volleyball" || !resultEl.hidden;
+  badmintonSceneEl.hidden = selectedSport.id !== "badminton" || !resultEl.hidden;
+}
+
+function applySportMood() {
+  document.body.dataset.sport = selectedSport.id;
+  watermarkEl.classList.remove("is-swapping");
+  void watermarkEl.offsetWidth;
+  watermarkEl.src = selectedSport.iconSrc;
+  watermarkEl.classList.add("is-swapping");
+  taglineEl.textContent = selectedSport.tagline;
+}
+
 function applySportChange() {
   players.forEach((player) => {
     player.pos = null;
     rebuildChips(player);
   });
+  applySportMood();
   clearResult();
 }
 
@@ -248,6 +280,7 @@ function createPlayer() {
     players.splice(index, 1);
     row.remove();
     renumberPlaceholders();
+    renderLegend();
   });
 
   row.append(nameCell, rating, remove);
@@ -299,10 +332,17 @@ const CLOSE_CHARGE_MS = 260;
 const CLOSE_ABSORB_MS = 450;
 const CLOSE_VANISH_MS = 600;
 
-// The reveal runs the same stages backwards: dot grows, then shivers while
-// the teams fly out and the button settles back into dark glass.
-const REVEAL_GROW_MS = 450;
-const REVEAL_SETTLE_MS = 1000;
+// Football intro: kick → save → ball fills the screen, then show the split.
+const FOOTBALL_KICK_MS = 1500;
+const FOOTBALL_IMPACT_MS = 1500;
+// Cricket intro: run-up → bounce → hit → ball fills the screen.
+const CRICKET_HIT_MS = 1700;
+const CRICKET_IMPACT_MS = 1500;
+// Volleyball intro: serve → over the net → spike → ball fills the screen.
+const VOLLEY_SPIKE_MS = 1450;
+const VOLLEY_IMPACT_MS = 1500;
+const BADMINTON_HIT_MS = 1450;
+const BADMINTON_IMPACT_MS = 1500;
 
 let animationTimers = [];
 
@@ -539,7 +579,67 @@ function splitTeams(squad) {
   return teamsFromFlags(squad, flags);
 }
 
-function teamMarkup(title, side, team) {
+/**
+ * Badminton pairs: two players per team, strongest with weakest so the team
+ * totals stay as close as possible. An odd squad leaves the highest-rated
+ * player as a team of one.
+ */
+function splitBadmintonPairs(squad) {
+  if (squad.length === 2) {
+    return squad.map((player) => [player]);
+  }
+
+  const ranked = squad
+    .map((player, index) => ({ player, index }))
+    .sort((a, b) => b.player.rating - a.player.rating || a.index - b.index)
+    .map((entry) => entry.player);
+
+  const pairs = [];
+  let pool = ranked;
+  let solo = null;
+  if (pool.length % 2 === 1) {
+    solo = pool[0];
+    pool = pool.slice(1);
+  }
+
+  const pairCount = pool.length / 2;
+  for (let i = 0; i < pairCount; i++) {
+    pairs.push([pool[i], pool[pool.length - 1 - i]]);
+  }
+  return solo ? [...pairs, [solo]] : pairs;
+}
+
+function showBadmintonResult(squad) {
+  const teams = splitBadmintonPairs(squad);
+  const pairStrengths = teams
+    .filter((team) => team.length === 2)
+    .map((team) => team.reduce((sum, player) => sum + player.rating, 0));
+  const pairGap = pairStrengths.length
+    ? Math.max(...pairStrengths) - Math.min(...pairStrengths)
+    : 0;
+  const pairNote =
+    pairGap === 0 ? "every pair has equal strength" : `pair strengths differ by ${pairGap}`;
+  const note =
+    squad.length === 2
+      ? "2 teams of 1."
+      : squad.length % 2 === 1
+        ? `The strongest player stands alone${pairStrengths.length ? ` &mdash; ${pairNote}` : ""}.`
+        : `${teams.length} teams of 2 &mdash; ${pairNote}.`;
+
+  resultEl.classList.add("is-pairs");
+  resultEl.innerHTML =
+    `<button type="button" id="closeResult" class="result-close" aria-label="Close split teams">&#10005;</button>` +
+    teams
+      .map((team, index) => teamMarkup(`Team ${index + 1}`, index % 2 === 0 ? "a" : "b", team, "team-pair"))
+      .join("") +
+    `<p class="result-note">${note}</p>`;
+  resultEl.hidden = false;
+  legendEl.hidden = true;
+  splitButton.disabled = true;
+  resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function teamMarkup(title, side, team, extraClass) {
   const strength = team.reduce((sum, p) => sum + p.rating, 0);
   const counts = countPositions(team);
   const catStrength = strengthByPosition(team);
@@ -554,10 +654,11 @@ function teamMarkup(title, side, team) {
       return `<li>${badge}<span>${escapeHtml(p.name)}</span><span class="bar" title="Rating ${p.rating}"><i style="width:${width}%"></i></span></li>`;
     })
     .join("");
+  const classes = extraClass ? `team team-${side} ${extraClass}` : `team team-${side}`;
   return `
-    <div class="team team-${side}">
+    <div class="${classes}">
       <h2>${title}</h2>
-      <p class="meta">${team.length} players &middot; strength ${strength}</p>
+      <p class="meta">${team.length === 1 ? "1 player" : `${team.length} players`} &middot; strength ${strength}</p>
       ${breakdown ? `<p class="meta positions-meta">${breakdown}</p>` : ""}
       <ul>${rows}</ul>
     </div>`;
@@ -571,8 +672,134 @@ function escapeHtml(value) {
 
 function renderResult() {
   const squad = activePlayers();
-  if (squad.length < 2) {
-    showWarning("Add at least 2 players to split a team");
+  const minimum = selectedSport.id === "badminton" ? 1 : 2;
+  if (squad.length < minimum) {
+    showWarning(
+      minimum === 1 ? "Add a player to split teams" : "Add at least 2 players to split a team"
+    );
+    return;
+  }
+  if (splitButton.disabled) return;
+
+  if (selectedSport.id === "football") {
+    playFootballSplitSequence(squad);
+    return;
+  }
+  if (selectedSport.id === "cricket") {
+    playCricketSplitSequence(squad);
+    return;
+  }
+  if (selectedSport.id === "volleyball") {
+    playVolleyballSplitSequence(squad);
+    return;
+  }
+  if (selectedSport.id === "badminton") {
+    playBadmintonSplitSequence(squad);
+    return;
+  }
+
+  showSplitResult(squad);
+}
+
+function sceneBall() {
+  return matchSceneEl.querySelector(".match-ball");
+}
+
+function sceneShadow() {
+  return matchSceneEl.querySelector(".match-ball-shadow");
+}
+
+/** Park the keeper on the save pose, read the glove, then put him back. */
+function gloveTarget() {
+  const keeper = matchSceneEl.querySelector(".match-keeper");
+  const hand = matchSceneEl.querySelector(".keeper-left-hand");
+  keeper.style.transformOrigin = "42% 96%";
+  keeper.style.transform = "translate(16px, -6px) rotate(6deg)";
+  hand.style.transform = "translate(16px, -18px) rotate(-30deg)";
+  const glove = hand.getBoundingClientRect();
+  const target = {
+    x: glove.left + glove.width / 2,
+    y: glove.top + glove.height / 2,
+  };
+  keeper.style.transform = "";
+  hand.style.transform = "";
+  return target;
+}
+
+function aimBallAtKeeper() {
+  const ball = sceneBall();
+  const shadow = sceneShadow();
+  ball.style.opacity = "";
+  shadow.style.opacity = "";
+  const ballBox = ball.getBoundingClientRect();
+  const target = gloveTarget();
+  const x = `${Math.round(target.x - (ballBox.left + ballBox.width / 2))}px`;
+  const y = `${Math.round(target.y - (ballBox.top + ballBox.height / 2))}px`;
+  ball.style.setProperty("--kick-x", x);
+  ball.style.setProperty("--kick-y", y);
+  shadow.style.setProperty("--kick-x", x);
+}
+
+function resetFootballImpact() {
+  impactEl.hidden = true;
+  impactEl.classList.remove("is-playing");
+  if (matchSceneEl) {
+    sceneBall().style.opacity = "";
+    sceneShadow().style.opacity = "";
+  }
+}
+
+function resetCricketImpact() {
+  cricketImpactEl.hidden = true;
+  cricketImpactEl.classList.remove("is-playing");
+  cricketSceneEl.querySelector(".cricket-ball").style.opacity = "";
+  cricketSceneEl.querySelector(".cricket-ball-shadow").style.opacity = "";
+}
+
+function aimCricketBall() {
+  const ball = cricketSceneEl.querySelector(".cricket-ball");
+  const shadow = cricketSceneEl.querySelector(".cricket-ball-shadow");
+  const bowler = cricketSceneEl.querySelector(".cricket-bowler");
+  const crease = cricketSceneEl.querySelector(".cricket-crease").getBoundingClientRect();
+  const batsman = cricketSceneEl.querySelector(".cricket-batsman").getBoundingClientRect();
+  bowler.style.transformOrigin = "center bottom";
+  bowler.style.transform = "translate(-62px, 0) rotate(-8deg)";
+
+  const center = (box) => ({ x: box.left + box.width / 2, y: box.top + box.height / 2 });
+  const move = (dx, dy, scale) => {
+    ball.style.transformOrigin = "center bottom";
+    ball.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+    return center(ball.getBoundingClientRect());
+  };
+  const aim = (target, scale) => {
+    ball.style.transform = "";
+    const start = center(ball.getBoundingClientRect());
+    let dx = target.x - start.x;
+    let dy = target.y - start.y;
+    const landed = move(dx, dy, scale);
+    dx -= landed.x - target.x;
+    dy -= landed.y - target.y;
+    return { x: Math.round(dx), y: Math.round(dy) };
+  };
+
+  const pitch = aim(center(crease), 0.92);
+  const target = aim(
+    { x: batsman.left + batsman.width * 0.28, y: batsman.top + batsman.height * 0.62 },
+    1
+  );
+  ball.style.transform = "";
+  bowler.style.transform = "";
+  ball.style.setProperty("--pitch-x", `${pitch.x}px`);
+  ball.style.setProperty("--pitch-y", `${pitch.y}px`);
+  ball.style.setProperty("--bowl-x", `${target.x}px`);
+  ball.style.setProperty("--bowl-y", `${target.y}px`);
+  shadow.style.setProperty("--pitch-x", `${pitch.x}px`);
+  shadow.style.setProperty("--bowl-x", `${target.x}px`);
+}
+
+function showSplitResult(squad) {
+  if (selectedSport.id === "badminton") {
+    showBadmintonResult(squad);
     return;
   }
 
@@ -594,7 +821,7 @@ function renderResult() {
   );
 
   const strengthNote =
-    gap === 0 ? "Equal strength" : `Strength difference of ${gap}`;
+    gap === 0 ? "equal strength" : `Strength difference of ${gap}`;
   const positionNote =
     positionGap === 0
       ? "every position shared evenly"
@@ -609,8 +836,175 @@ function renderResult() {
   resultEl.hidden = false;
   legendEl.hidden = true;
   splitButton.disabled = true;
-  revealResultWithAnimation();
   resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/** Kick → save → ball fills the screen, then open the split result. */
+function playFootballSplitSequence(squad) {
+  stopStages();
+  splitButton.disabled = true;
+  matchSceneEl.classList.remove("is-playing");
+  void matchSceneEl.offsetWidth;
+  aimBallAtKeeper();
+  matchSceneEl.classList.add("is-playing");
+  matchSceneEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  queueStage(() => {
+    const glove = matchSceneEl.querySelector(".keeper-left-hand").getBoundingClientRect();
+    const x = glove.left + glove.width / 2;
+    const y = glove.top + glove.height / 2;
+    impactEl.style.setProperty("--from-x", `${Math.round(x - window.innerWidth / 2)}px`);
+    impactEl.style.setProperty("--from-y", `${Math.round(y - window.innerHeight / 2)}px`);
+    sceneBall().style.opacity = "0";
+    sceneShadow().style.opacity = "0";
+    impactEl.hidden = false;
+    impactEl.classList.add("is-playing");
+
+    queueStage(() => {
+      resetFootballImpact();
+      matchSceneEl.classList.remove("is-playing");
+      matchSceneEl.hidden = true;
+      showSplitResult(squad);
+    }, FOOTBALL_IMPACT_MS);
+  }, FOOTBALL_KICK_MS);
+}
+
+/** Run-up → pitched delivery → bat strike → ball fills the screen. */
+function playCricketSplitSequence(squad) {
+  stopStages();
+  splitButton.disabled = true;
+  cricketSceneEl.classList.remove("is-playing");
+  void cricketSceneEl.offsetWidth;
+  aimCricketBall();
+  cricketSceneEl.classList.add("is-playing");
+  cricketSceneEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  queueStage(() => {
+    const ball = cricketSceneEl.querySelector(".cricket-ball");
+    const ballBox = ball.getBoundingClientRect();
+    const x = ballBox.left + ballBox.width / 2;
+    const y = ballBox.top + ballBox.height / 2;
+    cricketImpactEl.style.setProperty("--from-x", `${Math.round(x - window.innerWidth / 2)}px`);
+    cricketImpactEl.style.setProperty("--from-y", `${Math.round(y - window.innerHeight / 2)}px`);
+    ball.style.opacity = "0";
+    cricketSceneEl.querySelector(".cricket-ball-shadow").style.opacity = "0";
+    cricketImpactEl.hidden = false;
+    cricketImpactEl.classList.add("is-playing");
+
+    queueStage(() => {
+      resetCricketImpact();
+      cricketSceneEl.classList.remove("is-playing");
+      cricketSceneEl.hidden = true;
+      showSplitResult(squad);
+    }, CRICKET_IMPACT_MS);
+  }, CRICKET_HIT_MS);
+}
+
+function resetVolleyImpact() {
+  volleyImpactEl.hidden = true;
+  volleyImpactEl.classList.remove("is-playing");
+  volleySceneEl.querySelector(".vb-ball").style.opacity = "";
+}
+
+/** Aim the serve at the spiker's raised hand at the top of her jump. */
+function aimVolleyball() {
+  const ball = volleySceneEl.querySelector(".vb-ball");
+  const spiker = volleySceneEl.querySelector(".vb-spiker");
+  const arm = spiker.querySelector(".vb-arm");
+  spiker.style.transform = "translateY(-30px)";
+  arm.style.transform = "rotate(-170deg)";
+  const hand = arm.getBoundingClientRect();
+  spiker.style.transform = "";
+  arm.style.transform = "";
+  const ballBox = ball.getBoundingClientRect();
+  const x = hand.left + hand.width / 2 - (ballBox.left + ballBox.width / 2);
+  const y = hand.top + 6 - (ballBox.top + ballBox.height / 2);
+  ball.style.setProperty("--serve-x", `${Math.round(x)}px`);
+  ball.style.setProperty("--serve-y", `${Math.round(y)}px`);
+}
+
+/** Serve → ball crosses the net → spike → ball fills the screen. */
+function playVolleyballSplitSequence(squad) {
+  stopStages();
+  splitButton.disabled = true;
+  volleySceneEl.classList.remove("is-playing");
+  void volleySceneEl.offsetWidth;
+  aimVolleyball();
+  volleySceneEl.classList.add("is-playing");
+  volleySceneEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  queueStage(() => {
+    const ball = volleySceneEl.querySelector(".vb-ball");
+    const ballBox = ball.getBoundingClientRect();
+    const x = ballBox.left + ballBox.width / 2;
+    const y = ballBox.top + ballBox.height / 2;
+    volleyImpactEl.style.setProperty("--from-x", `${Math.round(x - window.innerWidth / 2)}px`);
+    volleyImpactEl.style.setProperty("--from-y", `${Math.round(y - window.innerHeight / 2)}px`);
+    ball.style.opacity = "0";
+    volleyImpactEl.hidden = false;
+    volleyImpactEl.classList.add("is-playing");
+
+    queueStage(() => {
+      resetVolleyImpact();
+      volleySceneEl.classList.remove("is-playing");
+      volleySceneEl.hidden = true;
+      showSplitResult(squad);
+    }, VOLLEY_IMPACT_MS);
+  }, VOLLEY_SPIKE_MS);
+}
+
+function resetBadmintonImpact() {
+  badmintonImpactEl.hidden = true;
+  badmintonImpactEl.classList.remove("is-playing");
+  badmintonSceneEl.querySelector(".bd-shuttle").style.opacity = "";
+}
+
+/** Aim the shuttle at the receiver's racket at the top of the hit. */
+function aimBadminton() {
+  const shuttle = badmintonSceneEl.querySelector(".bd-shuttle");
+  const receiver = badmintonSceneEl.querySelector(".bd-receiver");
+  const arm = receiver.querySelector(".bd-arm");
+  const racket = receiver.querySelector(".bd-racket");
+  receiver.style.transform = "translateY(-30px)";
+  arm.style.transform = "rotate(-160deg)";
+  const head = racket.getBoundingClientRect();
+  receiver.style.transform = "";
+  arm.style.transform = "";
+  const shuttleBox = shuttle.getBoundingClientRect();
+  const x = head.left + head.width / 2 - (shuttleBox.left + shuttleBox.width / 2);
+  const y = head.top + head.height / 2 - (shuttleBox.top + shuttleBox.height / 2);
+  shuttle.style.setProperty("--serve-x", `${Math.round(x)}px`);
+  shuttle.style.setProperty("--serve-y", `${Math.round(y)}px`);
+}
+
+/** Serve → shuttle arches over the net → hit → cork fills the screen. */
+function playBadmintonSplitSequence(squad) {
+  stopStages();
+  splitButton.disabled = true;
+  badmintonSceneEl.classList.remove("is-playing");
+  void badmintonSceneEl.offsetWidth;
+  aimBadminton();
+  badmintonSceneEl.classList.add("is-playing");
+  badmintonSceneEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  queueStage(() => {
+    const shuttle = badmintonSceneEl.querySelector(".bd-shuttle");
+    const box = shuttle.getBoundingClientRect();
+    const x = box.left + box.width / 2;
+    const y = box.top + box.height / 2;
+    badmintonImpactEl.style.setProperty("--from-x", `${Math.round(x - window.innerWidth / 2)}px`);
+    badmintonImpactEl.style.setProperty("--from-y", `${Math.round(y - window.innerHeight / 2)}px`);
+    shuttle.style.opacity = "0";
+    badmintonImpactEl.hidden = false;
+    badmintonImpactEl.classList.add("is-playing");
+
+    queueStage(() => {
+      resetBadmintonImpact();
+      badmintonSceneEl.classList.remove("is-playing");
+      badmintonSceneEl.hidden = true;
+      showSplitResult(squad);
+    }, BADMINTON_IMPACT_MS);
+  }, BADMINTON_HIT_MS);
 }
 
 function queueStage(step, delay) {
@@ -622,36 +1016,18 @@ function stopStages() {
   animationTimers = [];
 }
 
-/** Reverse of the close: a white dot grows, shivers, and spits out the teams. */
-function revealResultWithAnimation() {
-  const button = resultEl.querySelector("#closeResult");
-  if (!button) return;
-
-  stopStages();
-  resultEl.classList.add("is-revealing");
-  button.classList.add("is-seed");
-  void button.offsetWidth;
-  button.classList.add("is-grown");
-
-  queueStage(() => {
-    button.classList.remove("is-seed", "is-grown");
-    button.classList.add("is-settling", "is-shivering");
-    resultEl.classList.add("is-emerging");
-
-    queueStage(() => {
-      button.classList.remove("is-settling", "is-shivering");
-      resultEl.classList.remove("is-revealing", "is-emerging");
-    }, REVEAL_SETTLE_MS);
-  }, REVEAL_GROW_MS);
-}
-
 function clearResult() {
   stopStages();
-  resultEl.classList.remove("is-closing", "is-absorbing", "is-revealing", "is-emerging");
+  resetFootballImpact();
+  resetCricketImpact();
+  resetVolleyImpact();
+  resetBadmintonImpact();
+  resultEl.classList.remove("is-closing", "is-absorbing", "is-pairs");
   resultEl.hidden = true;
   resultEl.innerHTML = "";
   splitButton.disabled = false;
   renderLegend();
+  syncSportScenes();
 }
 
 /** Shiver, flash white, pull both team cards into the button, then fade out. */
@@ -659,8 +1035,6 @@ function closeResultWithAnimation(button) {
   if (resultEl.classList.contains("is-closing")) return;
 
   stopStages();
-  resultEl.classList.remove("is-revealing", "is-emerging");
-  button.classList.remove("is-seed", "is-grown", "is-settling");
   resultEl.classList.add("is-closing");
   button.classList.add("is-shivering");
 
@@ -684,11 +1058,12 @@ const sportTrigger = document.getElementById("sportTrigger");
 const sportMenu = document.getElementById("sportMenu");
 const sportIcon = document.getElementById("sportIcon");
 const sportLabel = document.getElementById("sportLabel");
-const legendEl = document.getElementById("legend");
+let showPositionsUntilAdd = false;
 
 function renderLegend() {
   const cats = currentCategories();
-  if (!cats.length) {
+  const show = cats.length > 0 && (showPositionsUntilAdd || players.length < 3);
+  if (!show) {
     legendEl.innerHTML = "";
     legendEl.hidden = true;
     return;
@@ -702,8 +1077,12 @@ function renderLegend() {
     .join("");
 }
 
+function sportIconMarkup(sport) {
+  return `<img src="${sport.iconSrc}" alt="">`;
+}
+
 function renderSportTrigger() {
-  sportIcon.innerHTML = selectedSport.icon;
+  sportIcon.innerHTML = sportIconMarkup(selectedSport);
   sportLabel.textContent = selectedSport.name;
 }
 
@@ -726,8 +1105,9 @@ SPORTS.forEach((sport) => {
   option.className = "sport-option";
   option.role = "option";
   option.dataset.id = sport.id;
-  option.innerHTML = `<span class="sport-icon">${sport.icon}</span><span>${sport.name}</span>`;
+  option.innerHTML = `<span class="sport-icon">${sportIconMarkup(sport)}</span><span>${sport.name}</span>`;
   option.addEventListener("click", () => {
+    if (selectedSport.id !== sport.id) showPositionsUntilAdd = true;
     selectedSport = sport;
     sportMenu.querySelectorAll(".sport-option").forEach((btn) => {
       btn.setAttribute("aria-selected", String(btn.dataset.id === sport.id));
@@ -742,6 +1122,8 @@ SPORTS.forEach((sport) => {
 
 sportMenu.querySelector(`[data-id="${selectedSport.id}"]`).setAttribute("aria-selected", "true");
 renderSportTrigger();
+applySportMood();
+syncSportScenes();
 renderLegend();
 
 sportTrigger.addEventListener("click", (event) => {
@@ -766,11 +1148,47 @@ photoOverlay.addEventListener("click", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") photoOverlay.hidden = true;
+  if (event.key === "Escape") {
+    photoOverlay.hidden = true;
+    closeConnect();
+  }
+});
+
+const connectButton = document.getElementById("connectButton");
+const connectCloth = document.getElementById("connectCloth");
+
+function openConnect() {
+  connectCloth.hidden = false;
+  void connectCloth.offsetWidth;
+  connectCloth.classList.add("is-open");
+  connectButton.setAttribute("aria-expanded", "true");
+}
+
+function closeConnect() {
+  if (connectCloth.hidden || !connectCloth.classList.contains("is-open")) return;
+  connectCloth.classList.remove("is-open");
+  connectButton.setAttribute("aria-expanded", "false");
+}
+
+connectButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  if (connectButton.getAttribute("aria-expanded") === "true") closeConnect();
+  else openConnect();
+});
+
+connectCloth.addEventListener("transitionend", (event) => {
+  if (event.propertyName !== "transform" || connectCloth.classList.contains("is-open")) return;
+  connectCloth.hidden = true;
+});
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".connect-wrap")) closeConnect();
 });
 
 document.getElementById("addPlayer").addEventListener("click", () => {
+  showPositionsUntilAdd = false;
   const player = createPlayer();
+  renderLegend();
   player.input.focus();
 });
 splitButton.addEventListener("click", renderResult);

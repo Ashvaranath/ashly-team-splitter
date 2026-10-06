@@ -2,12 +2,11 @@
   --page-top: #ffffff;
   --page-mid: #d8f7fd;
   --page-bottom: #38d9ee;
+  --mood-glow: rgba(56, 217, 238, 0.35);
   --panel: #ffffff;
   --stroke: #cfe3e8;
   --accent: #0891b2;
-  --accent-deep: #026e8a;
   --accent-soft: rgba(8, 145, 178, 0.22);
-  --on-accent: #ffffff;
   --input: #f2f7f9;
   --input-stroke: #ccdde3;
   --text: #0f2730;
@@ -24,6 +23,27 @@
   --team-b: #45c40c;
 }
 
+body[data-sport="cricket"] {
+  --page-top: #f3eefc;
+  --page-mid: #c4b0ef;
+  --page-bottom: #6d4ec8;
+  --mood-glow: rgba(109, 78, 200, 0.32);
+}
+
+body[data-sport="volleyball"] {
+  --page-top: #f2f3f5;
+  --page-mid: #a9aeb5;
+  --page-bottom: #5f656d;
+  --mood-glow: rgba(95, 101, 109, 0.34);
+}
+
+body[data-sport="badminton"] {
+  --page-top: #f3fff8;
+  --page-mid: #a8f0d2;
+  --page-bottom: #0f9f7a;
+  --mood-glow: rgba(16, 185, 129, 0.32);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -37,7 +57,49 @@ body {
   background-attachment: fixed;
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  width: 280px;
+  height: 280px;
+  left: -80px;
+  top: -60px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--mood-glow), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.sport-watermark {
+  position: fixed;
+  right: -2%;
+  bottom: 4%;
+  width: min(300px, 52vw);
+  opacity: 0.16;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.18));
+  transform: rotate(-12deg);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.sport-watermark.is-swapping {
+  animation: watermark-pop 0.4s ease;
+}
+
+@keyframes watermark-pop {
+  0% {
+    opacity: 0;
+    transform: rotate(-12deg) scale(0.92);
+  }
+  100% {
+    opacity: 0.16;
+    transform: rotate(-12deg) scale(1);
+  }
+}
+
 .page {
+  position: relative;
+  z-index: 1;
   max-width: 760px;
   margin: 0 auto;
   padding: 40px 20px 64px;
@@ -45,18 +107,17 @@ body {
 
 .page-header {
   position: relative;
-  display: flex;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: 12px 14px;
   align-items: center;
-  justify-content: center;
-  min-height: 56px;
+  margin-bottom: 18px;
 }
 
 .avatar {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   padding: 0;
   border-radius: 50%;
   border: 2px solid #ffffff;
@@ -114,13 +175,92 @@ body {
   }
 }
 
+.titles {
+  min-width: 0;
+}
+
 .page-title {
-  margin: 0 0 18px;
-  font-size: 34px;
+  margin: 0;
+  font-size: 30px;
   font-weight: 800;
   letter-spacing: 0.5px;
-  text-align: center;
+  text-align: left;
   color: #06323f;
+  line-height: 1.15;
+}
+
+.tagline {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0a4a5b;
+  opacity: 0.88;
+}
+
+.connect-wrap {
+  position: relative;
+  justify-self: end;
+}
+
+.connect-button {
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.88);
+  color: #0f2730;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(6, 50, 63, 0.18);
+}
+
+.connect-button[aria-expanded="true"] {
+  background: #ffffff;
+}
+
+.connect-cloth {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 8px 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 46%, rgba(0, 0, 0, 0.12)),
+    linear-gradient(180deg, #ececec 0%, #c4c4c4 42%, #9a9a9a 58%, #d2d2d2 100%);
+  color: #000;
+  border-radius: 8px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+  transform-origin: top center;
+  transform: scaleY(0);
+  transition: transform 0.35s ease;
+  z-index: 31;
+}
+
+.connect-cloth.is-open {
+  transform: scaleY(1);
+}
+
+.connect-cloth[hidden] {
+  display: none;
+}
+
+.connect-cloth p {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.connect-cloth p:last-child {
+  margin: 0;
+}
+
+.connect-cloth a {
+  color: #000;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .sport-bar {
@@ -163,8 +303,7 @@ body {
   flex-shrink: 0;
 }
 
-.sport-icon img,
-.sport-icon svg {
+.sport-icon img {
   width: 26px;
   height: 26px;
   display: block;
@@ -235,7 +374,6 @@ body {
   --stroke: #243136;
   --accent: #00e5ff;
   --accent-soft: rgba(0, 229, 255, 0.25);
-  --on-accent: #04222a;
   --input: #1c252b;
   --input-stroke: #2c3a41;
   --text: #e8f6f8;
@@ -362,10 +500,6 @@ body {
 
 .card .btn-ghost:hover {
   background: rgba(79, 246, 255, 0.16);
-}
-
-.card .btn-primary {
-  color: #03242d;
 }
 
 .list-head {
@@ -671,6 +805,7 @@ body {
 }
 
 .result-close {
+  position: relative;
   align-self: center;
   width: 38px;
   height: 38px;
@@ -743,42 +878,17 @@ body {
   transition: opacity 0.25s ease;
 }
 
-/* Reveal seed: an invisible white dot waiting to grow. */
-.result-close.is-seed {
-  transform: scale(0);
-  box-shadow: none;
-}
-
-.result-close.is-charged,
-.result-close.is-grown {
+.result-close.is-charged {
   transform: scale(1.18);
   box-shadow:
     0 0 0 6px rgba(255, 255, 255, 0.6),
     0 0 26px 10px rgba(190, 248, 255, 0.95),
     0 0 58px 22px rgba(0, 229, 255, 0.55);
-}
-
-.result-close.is-seed::after,
-.result-close.is-charged::after,
-.result-close.is-grown::after {
-  opacity: 1;
-}
-
-.result-close.is-charged {
   transition: box-shadow 0.22s ease, transform 0.22s ease;
 }
 
-.result-close.is-grown {
-  transition: transform 0.45s cubic-bezier(0.2, 1.35, 0.45, 1), box-shadow 0.4s ease;
-}
-
-/* Settling back into the dark glass button, icon fading in. */
-.result-close.is-settling {
-  transition: box-shadow 0.5s ease, transform 0.35s ease;
-}
-
-.result-close.is-settling::after {
-  transition: opacity 0.45s ease;
+.result-close.is-charged::after {
+  opacity: 1;
 }
 
 .result-close.is-vanishing {
@@ -803,36 +913,22 @@ body {
   transform: translateX(-28px) scale(0.04);
 }
 
+.result.is-pairs {
+  grid-template-columns: 1fr;
+}
+
+.result.is-pairs .result-close {
+  justify-self: center;
+}
+
+.result.is-absorbing .team-pair {
+  transform-origin: center top;
+  transform: translateY(-12px) scale(0.04);
+}
+
 .result.is-absorbing .result-note {
   opacity: 0;
   transition: opacity 0.3s ease;
-}
-
-/* Reveal: the cards start hidden inside the button, then fly out of it. */
-.result.is-revealing .team,
-.result.is-revealing .result-note {
-  opacity: 0;
-}
-
-.result.is-revealing .team-a {
-  transform-origin: right center;
-  transform: translateX(28px) scale(0.04);
-}
-
-.result.is-revealing .team-b {
-  transform-origin: left center;
-  transform: translateX(-28px) scale(0.04);
-}
-
-.result.is-emerging .team {
-  opacity: 1;
-  transform: none;
-  transition: transform 0.55s cubic-bezier(0.2, 0.9, 0.25, 1), opacity 0.4s ease-out;
-}
-
-.result.is-emerging .result-note {
-  opacity: 1;
-  transition: opacity 0.4s ease-out 0.25s;
 }
 
 .team {
@@ -1005,6 +1101,937 @@ body {
   letter-spacing: 0.2px;
 }
 
+/* Football scene sits on the app background, like the hand sketch */
+.match-scene {
+  position: relative;
+  margin-top: 4px;
+  height: 188px;
+  background: transparent;
+  overflow: visible;
+}
+
+.match-scene[hidden] {
+  display: none;
+}
+
+.match-pitch {
+  position: absolute;
+  left: -6%;
+  right: -2%;
+  bottom: 0;
+  width: 108%;
+  height: 72%;
+  overflow: visible;
+}
+
+.match-actors {
+  position: relative;
+  height: 100%;
+  z-index: 1;
+}
+
+.match-goal,
+.match-keeper,
+.match-shooter,
+.match-ball,
+.match-ball-shadow {
+  position: absolute;
+  transform-origin: center bottom;
+  will-change: transform;
+}
+
+.match-goal {
+  left: 4%;
+  bottom: 14%;
+  width: 160px;
+  height: 124px;
+  z-index: 2;
+}
+
+.match-goal svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 5px 3px rgba(0, 0, 0, 0.2));
+}
+
+.match-keeper {
+  left: calc(4% + 53px);
+  bottom: 16%;
+  width: 54px;
+  height: 78px;
+  z-index: 5;
+  filter: drop-shadow(0 5px 6px rgba(0, 0, 0, 0.22));
+}
+
+.match-shooter {
+  right: 4%;
+  bottom: 16%;
+  width: 62px;
+  height: 84px;
+  z-index: 5;
+  filter: drop-shadow(0 5px 6px rgba(0, 0, 0, 0.22));
+}
+
+.match-keeper svg,
+.match-shooter svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.match-ball {
+  --kick-x: -160px;
+  --kick-y: -30px;
+  right: 18%;
+  bottom: 17%;
+  width: 28px;
+  height: 28px;
+  z-index: 8;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow:
+    inset -3px -4px 8px rgba(0, 0, 0, 0.35),
+    inset 2px 3px 6px rgba(255, 255, 255, 0.35),
+    0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.match-ball img {
+  width: 140%;
+  height: 140%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  margin: -20%;
+  border-radius: 50%;
+}
+
+.match-ball-shadow {
+  right: calc(18% + 2px);
+  bottom: 15%;
+  width: 28px;
+  height: 8px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.35), transparent 70%);
+  z-index: 7;
+}
+
+.keeper-left-hand {
+  transform-box: fill-box;
+  transform-origin: 20% 80%;
+}
+
+.match-scene.is-playing .match-shooter {
+  animation: match-run-step 0.72s ease-in-out forwards;
+}
+
+.match-scene.is-playing .match-ball {
+  animation: match-kick-to-goal 0.8s 0.65s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+
+.match-scene.is-playing .match-ball img {
+  animation: match-spin-ball 0.8s 0.65s linear forwards;
+}
+
+.match-scene.is-playing .match-ball-shadow {
+  animation: match-shadow-follow 0.8s 0.65s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+
+.match-scene.is-playing .match-keeper {
+  transform-origin: 42% 96%;
+  animation: match-keeper-save 1.05s 1s cubic-bezier(0.22, 0.6, 0.3, 1) forwards;
+}
+
+.match-scene.is-playing .keeper-left-hand {
+  animation: keeper-left-touch 0.34s 1.14s ease-out forwards;
+}
+
+@keyframes match-run-step {
+  0% { transform: translateX(0) translateY(0); }
+  22% { transform: translateX(-16px) translateY(-7px); }
+  44% { transform: translateX(-34px) translateY(0); }
+  66% { transform: translateX(-50px) translateY(-6px); }
+  84% { transform: translateX(-62px) translateY(0) rotate(-10deg); }
+  100% { transform: translateX(-54px) translateY(1px) rotate(-14deg); }
+}
+
+@keyframes match-kick-to-goal {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  22% { transform: translate(calc(var(--kick-x) * 0.14), -24px) scale(1.06); opacity: 1; }
+  58% { transform: translate(calc(var(--kick-x) * 0.62), calc(var(--kick-y) * 0.4 - 16px)) scale(1.08); opacity: 1; }
+  100% { transform: translate(var(--kick-x), var(--kick-y)) scale(1); opacity: 1; }
+}
+
+@keyframes match-shadow-follow {
+  0% { transform: translateX(0) scale(1); opacity: 0.9; }
+  58% { transform: translateX(calc(var(--kick-x) * 0.62)) scale(0.55); opacity: 0.25; }
+  100% { transform: translateX(var(--kick-x)) scale(0.85); opacity: 0.4; }
+}
+
+@keyframes match-spin-ball {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(640deg); }
+}
+
+@keyframes match-keeper-save {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  40% { transform: translate(8px, -22px) rotate(-4deg); }
+  48%, 100% { transform: translate(16px, -6px) rotate(6deg); }
+}
+
+@keyframes keeper-left-touch {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(16px, -18px) rotate(-30deg); }
+}
+
+/* Cricket scene: bowler, pitched delivery, batsman and strike */
+.cricket-scene {
+  position: relative;
+  height: 188px;
+  margin-top: 4px;
+  overflow: visible;
+}
+
+.cricket-scene[hidden] {
+  display: none;
+}
+
+.cricket-field {
+  position: absolute;
+  left: -6%;
+  bottom: 0;
+  width: 108%;
+  height: 72%;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #b6f59a 0%, #5dce62 50%, #2f9a45 100%);
+}
+
+.cricket-crease {
+  position: absolute;
+  left: 11%;
+  right: 10%;
+  bottom: 18%;
+  height: 44px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #e8d59f, #c9a969);
+  box-shadow: inset 0 0 18px rgba(111, 77, 30, 0.18);
+}
+
+.crease-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.crease-left {
+  left: 7%;
+}
+
+.crease-right {
+  right: 7%;
+}
+
+.cricket-stumps,
+.cricket-batsman,
+.cricket-bowler,
+.cricket-ball,
+.cricket-ball-shadow {
+  position: absolute;
+  z-index: 4;
+  transform-origin: center bottom;
+  will-change: transform;
+}
+
+.cricket-stumps {
+  left: calc(15% - 36px);
+  bottom: calc(18% + 16px);
+  width: 28px;
+  height: 54px;
+}
+
+.cricket-stumps i {
+  position: absolute;
+  bottom: 0;
+  width: 4px;
+  height: 48px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #e2a14a, #ffe1a3, #b96e25);
+  box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.2);
+}
+
+.cricket-stumps i:nth-child(1) { left: 3px; }
+.cricket-stumps i:nth-child(2) { left: 12px; }
+.cricket-stumps i:nth-child(3) { left: 21px; }
+
+.cricket-stumps b {
+  position: absolute;
+  top: 4px;
+  width: 12px;
+  height: 3px;
+  border-radius: 3px;
+  background: #f4c16f;
+}
+
+.cricket-stumps b:nth-of-type(1) { left: 1px; transform: rotate(3deg); }
+.cricket-stumps b:nth-of-type(2) { right: 1px; transform: rotate(-3deg); }
+
+.cricket-batsman {
+  left: 15%;
+  bottom: calc(18% + 16px);
+  width: 62px;
+  height: 92px;
+  filter: drop-shadow(0 5px 6px rgba(0, 0, 0, 0.22));
+}
+
+.cricket-bowler {
+  right: 4%;
+  bottom: calc(18% + 16px);
+  width: 62px;
+  height: 92px;
+  filter: drop-shadow(0 5px 6px rgba(0, 0, 0, 0.22));
+}
+
+.cricket-batsman svg,
+.cricket-bowler svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.bat-arm {
+  transform-box: fill-box;
+  transform-origin: 15% 20%;
+}
+
+.bowling-arm {
+  transform-box: fill-box;
+  transform-origin: 30% 15%;
+}
+
+.cricket-ball {
+  --bowl-x: -260px;
+  --bowl-y: -18px;
+  left: calc(74 / 94 * 100% - 9px);
+  top: calc(70 / 138 * 100% - 9px);
+  width: 18px;
+  height: 18px;
+  opacity: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #f08a88 0 8%, #ba2028 36%, #760b13 76%, #3d0508 100%);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  z-index: 8;
+}
+
+.cricket-ball span,
+.cricket-impact-seam {
+  position: absolute;
+  left: 48%;
+  top: -10%;
+  width: 8%;
+  height: 120%;
+  border-left: 1px solid #f6e5d3;
+  border-right: 1px solid #f6e5d3;
+  transform: rotate(-20deg);
+}
+
+.cricket-ball-shadow {
+  left: 28%;
+  bottom: 4px;
+  width: 18px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.24);
+  filter: blur(2px);
+  z-index: 3;
+}
+
+.cricket-scene.is-playing .cricket-bowler {
+  animation: bowler-run 0.72s ease-in-out forwards;
+}
+
+.cricket-scene.is-playing .bowling-arm {
+  animation: bowling-arm 0.52s 0.38s ease-in-out forwards;
+}
+
+.cricket-scene.is-playing .held-ball {
+  animation: release-ball 0.01s 0.72s forwards;
+}
+
+.cricket-scene.is-playing .cricket-ball {
+  animation: cricket-delivery 0.95s 0.72s linear forwards;
+}
+
+.cricket-scene.is-playing .cricket-ball span {
+  animation: cricket-delivery-spin 0.95s 0.72s linear forwards;
+}
+
+.cricket-scene.is-playing .cricket-ball-shadow {
+  animation: cricket-shadow 0.95s 0.72s linear forwards;
+}
+
+.cricket-scene.is-playing .bat-arm {
+  animation: batsman-hit 0.46s 1.48s ease-out forwards;
+}
+
+@keyframes bowler-run {
+  0% { transform: translate(0, 0); }
+  24% { transform: translate(-18px, -7px); }
+  48% { transform: translate(-36px, 0); }
+  72% { transform: translate(-52px, -6px); }
+  100% { transform: translate(-62px, 0) rotate(-8deg); }
+}
+
+@keyframes bowling-arm {
+  0% { transform: rotate(0deg); }
+  55% { transform: rotate(-155deg); }
+  100% { transform: rotate(-245deg); }
+}
+
+@keyframes release-ball {
+  to { opacity: 0; }
+}
+
+@keyframes cricket-delivery {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  42% { transform: translate(var(--pitch-x), var(--pitch-y)) scale(0.92); opacity: 1; }
+  50% { transform: translate(calc(var(--pitch-x) + 10px), calc(var(--pitch-y) - 8px)) scale(0.96); opacity: 1; }
+  72% { transform: translate(calc((var(--pitch-x) + var(--bowl-x)) / 2), calc(var(--bowl-y) - 18px)) scale(1.02); opacity: 1; }
+  100% { transform: translate(var(--bowl-x), var(--bowl-y)) scale(1); opacity: 1; }
+}
+
+@keyframes cricket-delivery-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(720deg); }
+}
+
+@keyframes cricket-shadow {
+  0% { transform: translateX(0) scale(1); opacity: 0.35; }
+  42% { transform: translateX(var(--pitch-x)) scale(1.2); opacity: 0.75; }
+  72% { transform: translateX(calc((var(--pitch-x) + var(--bowl-x)) / 2)) scale(0.45); opacity: 0.3; }
+  100% { transform: translateX(var(--bowl-x)) scale(0.7); opacity: 0.45; }
+}
+
+@keyframes batsman-hit {
+  0% { transform: rotate(0deg); }
+  42% { transform: rotate(62deg); }
+  100% { transform: rotate(-20deg); }
+}
+
+/* Red cricket ball coming toward the user's face */
+.cricket-impact {
+  --from-x: -18vw;
+  --from-y: 12vh;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cricket-impact[hidden] {
+  display: none;
+}
+
+.cricket-impact-ball {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150vmax;
+  height: 150vmax;
+  border-radius: 50%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.6) 0 3%, transparent 12%),
+    radial-gradient(circle at 38% 32%, #df6265 0%, #a91520 38%, #650710 72%, #280104 100%);
+  transform: translate(-50%, -50%) translate(var(--from-x), var(--from-y)) scale(0.035);
+}
+
+.cricket-impact-seam {
+  left: 48%;
+  border-width: 0 10px;
+  border-style: solid;
+  border-color: #f7e5d2;
+}
+
+.cricket-impact.is-playing .cricket-impact-ball {
+  animation: cricket-impact-grow 1.5s linear forwards;
+}
+
+.cricket-impact.is-playing .cricket-impact-seam {
+  animation: cricket-impact-spin 1.5s linear forwards;
+}
+
+@keyframes cricket-impact-grow {
+  from {
+    transform: translate(-50%, -50%) translate(var(--from-x), var(--from-y)) scale(0.035);
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes cricket-impact-spin {
+  from { transform: rotate(-20deg); }
+  to { transform: rotate(160deg); }
+}
+
+/* Volleyball scene: beach court, net, serve and spike */
+.volley-scene {
+  position: relative;
+  height: 268px;
+  margin-top: 4px;
+  overflow: visible;
+}
+
+.volley-scene[hidden] {
+  display: none;
+}
+
+.vb-sand {
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  bottom: 4px;
+  height: 112px;
+  border-radius: 0;
+  background: linear-gradient(180deg, #f6ddb8 0%, #e8c08a 52%, #d4a36a 100%);
+}
+
+.vb-court {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  bottom: 12px;
+  height: 92px;
+  border: 3px solid rgba(255, 255, 255, 0.95);
+  border-radius: 0;
+  background:
+    linear-gradient(#ffffff, #ffffff) center / 3px 100% no-repeat;
+}
+
+.vb-net,
+.vb-player,
+.vb-ball {
+  position: absolute;
+  transform-origin: center bottom;
+  will-change: transform;
+}
+
+.vb-net {
+  left: 50%;
+  bottom: 8px;
+  width: 96px;
+  height: 184px;
+  margin-left: -30px;
+  z-index: 4;
+}
+
+.vb-net svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.vb-player {
+  z-index: 4;
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.2));
+}
+
+.vb-player svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.vb-server { left: 2%; bottom: 102px; width: 38px; height: 62px; z-index: 3; }
+.vb-partner { left: 16%; bottom: 26px; width: 50px; height: 84px; z-index: 6; }
+.vb-spiker { left: calc(50% + 22px); bottom: 56px; width: 46px; height: 76px; z-index: 5; }
+.vb-blocker { right: 3%; bottom: 98px; width: 36px; height: 58px; z-index: 3; }
+
+.vb-arm {
+  transform-box: fill-box;
+  transform-origin: 50% 8%;
+}
+
+.vb-ball {
+  --serve-x: 220px;
+  --serve-y: -20px;
+  left: calc(2% + 22px);
+  bottom: 136px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  z-index: 6;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.8) 0 10%, transparent 34%),
+    conic-gradient(from 20deg, #ffd23f 0 120deg, #ffffff 120deg 240deg, #2a6fdb 240deg 360deg);
+  box-shadow: inset -2px -3px 5px rgba(0, 0, 0, 0.25), 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.volley-scene.is-playing .vb-server {
+  animation: vb-server-jump 0.72s ease-in-out forwards;
+}
+
+.volley-scene.is-playing .vb-server .vb-arm {
+  animation: vb-serve-arm 0.22s 0.08s ease-in forwards;
+}
+
+.volley-scene.is-playing .vb-ball {
+  animation: vb-serve-flight 1.45s linear forwards;
+}
+
+.volley-scene.is-playing .vb-spiker {
+  animation: vb-spiker-jump 0.85s 0.78s ease-out forwards;
+}
+
+.volley-scene.is-playing .vb-spiker .vb-arm {
+  animation: vb-spike-arm 0.65s 0.9s ease-in forwards;
+}
+
+@keyframes vb-server-jump {
+  0% { transform: translateY(0); }
+  32% { transform: translateY(-28px); }
+  48% { transform: translateY(-20px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes vb-serve-arm {
+  0% { transform: rotate(-20deg); }
+  100% { transform: rotate(158deg); }
+}
+
+@keyframes vb-serve-flight {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  15% { transform: translate(calc(var(--serve-x) * 0.15), calc(var(--serve-y) * 0.15 - 45px)) rotate(50deg); }
+  32% { transform: translate(calc(var(--serve-x) * 0.32), calc(var(--serve-y) * 0.32 - 76px)) rotate(120deg); }
+  50% { transform: translate(calc(var(--serve-x) * 0.5), calc(var(--serve-y) * 0.5 - 88px)) rotate(180deg); }
+  68% { transform: translate(calc(var(--serve-x) * 0.68), calc(var(--serve-y) * 0.68 - 76px)) rotate(240deg); }
+  85% { transform: translate(calc(var(--serve-x) * 0.85), calc(var(--serve-y) * 0.85 - 40px)) rotate(300deg); }
+  100% { transform: translate(var(--serve-x), var(--serve-y)) rotate(360deg); }
+}
+
+@keyframes vb-spiker-jump {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-30px); }
+  82% { transform: translateY(-30px); }
+  100% { transform: translateY(-6px); }
+}
+
+@keyframes vb-spike-arm {
+  0% { transform: rotate(0deg); }
+  55% { transform: rotate(-170deg); }
+  100% { transform: rotate(-170deg); }
+}
+
+/* Volleyball coming toward the user's face */
+.volley-impact {
+  --from-x: 10vw;
+  --from-y: 10vh;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.volley-impact[hidden] {
+  display: none;
+}
+
+.volley-impact-ball {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150vmax;
+  height: 150vmax;
+  border-radius: 50%;
+  overflow: hidden;
+  transform: translate(-50%, -50%) translate(var(--from-x), var(--from-y)) scale(0.035);
+}
+
+.volley-impact-ball::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.55) 0 4%, transparent 22%),
+    radial-gradient(circle at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.28) 100%);
+}
+
+.volley-impact-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 20deg, #ffd23f 0 120deg, #ffffff 120deg 240deg, #2a6fdb 240deg 360deg);
+}
+
+.volley-impact.is-playing .volley-impact-ball {
+  animation: volley-impact-grow 1.5s linear forwards;
+}
+
+.volley-impact.is-playing .volley-impact-face {
+  animation: volley-impact-spin 1.5s linear forwards;
+}
+
+@keyframes volley-impact-grow {
+  from {
+    transform: translate(-50%, -50%) translate(var(--from-x), var(--from-y)) scale(0.035);
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes volley-impact-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(180deg); }
+}
+
+/* Full-screen 3D ball rushing toward the user */
+.football-impact {
+  --from-x: -18vw;
+  --from-y: 18vh;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.football-impact[hidden] {
+  display: none;
+}
+
+.impact-ball {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150vmax;
+  height: 150vmax;
+  border-radius: 50%;
+  overflow: hidden;
+  transform: translate(-50%, -50%) scale(0.03);
+}
+
+.impact-ball img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 38%;
+  transform: scale(1.75);
+  display: block;
+}
+
+.football-impact.is-playing .impact-ball {
+  animation: football-impact-grow 1.5s linear forwards;
+}
+
+.football-impact.is-playing .impact-ball img {
+  animation: impact-spin 1.5s linear forwards;
+}
+
+@keyframes impact-spin {
+  from { transform: scale(1.75) rotate(0deg); }
+  to { transform: scale(1.75) rotate(180deg); }
+}
+
+@keyframes football-impact-grow {
+  from {
+    transform: translate(-50%, -50%) translate(var(--from-x), var(--from-y)) scale(0.04);
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Badminton scene: dark green court, rackets, shuttle over the net */
+.badminton-scene {
+  position: relative;
+  height: 268px;
+  margin-top: 4px;
+  overflow: visible;
+}
+
+.badminton-scene[hidden] {
+  display: none;
+}
+
+.bd-floor {
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  bottom: 4px;
+  height: 112px;
+  background: #0b4a2a;
+}
+
+.bd-court {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  bottom: 12px;
+  height: 92px;
+  border: 3px solid rgba(255, 255, 255, 0.95);
+  background:
+    linear-gradient(#ffffff, #ffffff) center / 3px 100% no-repeat,
+    linear-gradient(180deg, #1c8f4e 0%, #0e6a38 100%);
+}
+
+.bd-net,
+.bd-player,
+.bd-shuttle {
+  position: absolute;
+  transform-origin: center bottom;
+  will-change: transform;
+}
+
+.bd-net {
+  left: 50%;
+  bottom: 8px;
+  width: 96px;
+  height: 184px;
+  margin-left: -30px;
+  z-index: 4;
+}
+
+.bd-net svg,
+.bd-player svg,
+.bd-shuttle svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.bd-player {
+  z-index: 4;
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.25));
+}
+
+.bd-server { left: 2%; bottom: 102px; width: 38px; height: 62px; z-index: 3; }
+.bd-partner { left: 16%; bottom: 26px; width: 50px; height: 84px; z-index: 6; }
+.bd-receiver { left: calc(50% + 22px); bottom: 56px; width: 46px; height: 76px; z-index: 5; }
+.bd-back { right: 3%; bottom: 98px; width: 36px; height: 58px; z-index: 3; }
+
+.bd-arm {
+  transform-box: view-box;
+  transform-origin: 60px 40px;
+}
+
+.bd-receiver .bd-arm {
+  transform-origin: 20px 40px;
+}
+
+.bd-shuttle {
+  --serve-x: 220px;
+  --serve-y: -16px;
+  left: calc(2% + 28px);
+  bottom: 128px;
+  width: 22px;
+  height: 14px;
+  z-index: 7;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+}
+
+.badminton-scene.is-playing .bd-server {
+  animation: bd-server-jump 0.72s ease-in-out forwards;
+}
+
+.badminton-scene.is-playing .bd-server .bd-arm {
+  animation: bd-serve-arm 0.22s 0.08s ease-in forwards;
+}
+
+.badminton-scene.is-playing .bd-shuttle {
+  animation: bd-serve-flight 1.45s linear forwards;
+}
+
+.badminton-scene.is-playing .bd-receiver {
+  animation: bd-receiver-jump 0.85s 0.78s ease-out forwards;
+}
+
+.badminton-scene.is-playing .bd-receiver .bd-arm {
+  animation: bd-hit-arm 0.65s 0.9s ease-in forwards;
+}
+
+@keyframes bd-server-jump {
+  0% { transform: translateY(0); }
+  32% { transform: translateY(-28px); }
+  48% { transform: translateY(-20px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes bd-serve-arm {
+  0% { transform: rotate(-20deg); }
+  100% { transform: rotate(150deg); }
+}
+
+@keyframes bd-serve-flight {
+  0% { transform: translate(0, 0) rotate(-16deg); }
+  15% { transform: translate(calc(var(--serve-x) * 0.15), calc(var(--serve-y) * 0.15 - 45px)) rotate(-6deg); }
+  32% { transform: translate(calc(var(--serve-x) * 0.32), calc(var(--serve-y) * 0.32 - 76px)) rotate(4deg); }
+  50% { transform: translate(calc(var(--serve-x) * 0.5), calc(var(--serve-y) * 0.5 - 88px)) rotate(10deg); }
+  68% { transform: translate(calc(var(--serve-x) * 0.68), calc(var(--serve-y) * 0.68 - 76px)) rotate(16deg); }
+  85% { transform: translate(calc(var(--serve-x) * 0.85), calc(var(--serve-y) * 0.85 - 40px)) rotate(22deg); }
+  100% { transform: translate(var(--serve-x), var(--serve-y)) rotate(28deg); }
+}
+
+@keyframes bd-receiver-jump {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-30px); }
+  82% { transform: translateY(-30px); }
+  100% { transform: translateY(-6px); }
+}
+
+@keyframes bd-hit-arm {
+  0% { transform: rotate(0deg); }
+  55% { transform: rotate(-160deg); }
+  100% { transform: rotate(-160deg); }
+}
+
+.bd-impact {
+  --from-x: 8vw;
+  --from-y: 8vh;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bd-impact[hidden] {
+  display: none;
+}
+
+.bd-impact-shuttle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100vmax;
+  height: 100vmax;
+  transform: translate(-50%, -50%) translate(var(--from-x), var(--from-y)) scale(0.045);
+}
+
+.bd-impact.is-playing .bd-impact-shuttle {
+  animation: bd-impact-grow 1.5s linear forwards;
+}
+
+@keyframes bd-impact-grow {
+  from {
+    transform: translate(-50%, -50%) translate(var(--from-x), var(--from-y)) scale(0.045);
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 @media (max-width: 620px) {
   .result {
     grid-template-columns: 1fr;
@@ -1015,20 +2042,19 @@ body {
   }
 
   /* Stacked layout: the button sits above and below the cards, not beside. */
-  .result.is-absorbing .team-a,
-  .result.is-revealing .team-a {
+  .result.is-absorbing .team-a {
     transform-origin: bottom center;
     transform: translateY(18px) scale(0.04);
   }
 
-  .result.is-absorbing .team-b,
-  .result.is-revealing .team-b {
+  .result.is-absorbing .team-b {
     transform-origin: top center;
     transform: translateY(-18px) scale(0.04);
   }
 
-  .result.is-emerging .team {
-    transform: none;
+  .result.is-absorbing .team-pair {
+    transform-origin: center top;
+    transform: translateY(-12px) scale(0.04);
   }
 
   .list-head,
@@ -1039,5 +2065,118 @@ body {
 
   .pips span {
     width: 5px;
+  }
+
+  .match-scene {
+    height: 164px;
+  }
+
+  .match-goal {
+    width: 136px;
+    height: 108px;
+    left: 1%;
+    bottom: 12%;
+  }
+
+  .match-keeper {
+    width: 46px;
+    left: calc(1% + 45px);
+    bottom: 15%;
+  }
+
+  .match-shooter {
+    width: 54px;
+    right: 2%;
+    bottom: 15%;
+  }
+
+  .match-ball {
+    width: 24px;
+    height: 24px;
+    right: 16%;
+    bottom: 16%;
+  }
+
+  .match-ball-shadow {
+    right: calc(16% + 2px);
+    bottom: 14%;
+  }
+
+  .cricket-scene {
+    height: 164px;
+  }
+
+  .cricket-batsman,
+  .cricket-bowler {
+    width: 54px;
+    height: 84px;
+  }
+
+  .cricket-stumps {
+    left: calc(14% - 32px);
+    bottom: calc(18% + 14px);
+    transform: scale(0.88);
+  }
+
+  .cricket-batsman,
+  .cricket-bowler {
+    bottom: calc(18% + 14px);
+  }
+
+  .cricket-batsman {
+    left: 14%;
+  }
+
+  .cricket-bowler {
+    right: 2%;
+  }
+
+  .cricket-ball,
+  .cricket-ball-shadow {
+    right: auto;
+  }
+
+  .volley-scene {
+    height: 236px;
+  }
+
+  .vb-net {
+    width: 82px;
+    height: 158px;
+    bottom: 6px;
+    margin-left: -26px;
+  }
+
+  .vb-server { left: 1%; bottom: 90px; width: 34px; height: 54px; }
+  .vb-partner { left: 13%; bottom: 20px; width: 44px; height: 72px; }
+  .vb-spiker { left: calc(50% + 14px); bottom: 46px; width: 40px; height: 66px; }
+  .vb-blocker { right: 1%; bottom: 86px; width: 32px; height: 52px; }
+
+  .vb-ball {
+    left: calc(1% + 18px);
+    bottom: 118px;
+  }
+
+  .badminton-scene {
+    height: 236px;
+  }
+
+  .bd-net {
+    width: 82px;
+    height: 158px;
+    bottom: 6px;
+    margin-left: -26px;
+  }
+
+  .bd-server { left: 1%; bottom: 90px; width: 34px; height: 54px; }
+  .bd-partner { left: 13%; bottom: 20px; width: 44px; height: 72px; }
+  .bd-receiver { left: calc(50% + 14px); bottom: 46px; width: 40px; height: 66px; }
+  .bd-back { right: 1%; bottom: 86px; width: 32px; height: 52px; }
+
+  .bd-shuttle {
+    left: calc(1% + 20px);
+    bottom: 112px;
+    width: 20px;
+    height: 13px;
   }
 }
