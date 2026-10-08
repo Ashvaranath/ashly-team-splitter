@@ -39,7 +39,7 @@
           <div id="accountMenu" class="account-menu" hidden>
             <p id="accountUsername" class="account-username" hidden></p>
             <button type="button" id="accountLoginOption" class="account-menu-item">Login</button>
-            <button type="button" id="accountSaveRatingsOption" class="account-menu-item" hidden>Save ratings</button>
+            <button type="button" id="accountSaveRatingsOption" class="account-menu-item" hidden>Ratings*</button>
             <button type="button" id="accountLogoutOption" class="account-menu-item" hidden>Logout</button>
           </div>
         </div>
@@ -57,10 +57,22 @@
       </div>
     </div>
 
+    <p id="authBanner" class="auth-banner" role="status" aria-live="polite" hidden></p>
+
     <section class="card">
       <div class="list-head">
         <span class="col-players">Players</span>
-        <span class="col-rating">Rating</span>
+        <div class="col-rating col-rating-head">
+          <span>Rating</span>
+          <button id="headerSaveRatings" type="button" class="header-save-btn" aria-label="Save" title="Save" hidden>
+            <svg class="header-save-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zM15 9H5V5h10v4z"
+              />
+            </svg>
+          </button>
+        </div>
         <span class="col-actions"></span>
       </div>
 
@@ -535,11 +547,11 @@
       <button type="button" id="authClose" class="auth-close" aria-label="Close">&#10005;</button>
       <p class="auth-eyebrow" id="authEyebrow">Welcome</p>
       <h2 class="auth-title" id="authTitle">Login</h2>
-      <p class="auth-subtitle" id="authSubtitle">Sign in to save your player ratings later.</p>
+      <p class="auth-subtitle" id="authSubtitle">Sign in to save your player ratings.</p>
       <form id="authForm" class="auth-form" autocomplete="on">
         <label class="auth-field">
           <span>Username</span>
-          <input id="authUsername" name="username" type="text" autocomplete="username" />
+          <input id="authUsername" name="username" type="text" autocomplete="username" spellcheck="false" />
         </label>
         <label class="auth-field">
           <span>Password</span>
@@ -557,7 +569,9 @@
 
   <div id="ratingsOverlay" class="ratings-overlay" role="dialog" aria-modal="true" aria-label="Save ratings" hidden>
     <section class="card ratings-card">
-      <button type="button" id="ratingsClose" class="ratings-close" aria-label="Close">&#10005;</button>
+      <div class="ratings-card-top">
+        <button type="button" id="ratingsClose" class="ratings-close" aria-label="Close">&#10005;</button>
+      </div>
       <div class="list-head">
         <span class="col-players">Players</span>
         <span class="col-rating">Rating</span>
@@ -583,6 +597,8 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-client.js"></script>
   <script src="auth.js"></script>
   <script src="app.js"></script>
 </body>

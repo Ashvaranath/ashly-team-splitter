@@ -44,7 +44,7 @@ val generatedWebAssets = layout.buildDirectory.dir("generated/webAssets")
 
 val copyWebAssets by tasks.registering(Copy::class) {
     from(webRoot) {
-        include("index.html", "styles.css", "app.js", "auth.js")
+        include("index.html", "styles.css", "app.js", "auth.js", "supabase-client.js")
     }
     from(webRoot.resolve("icons")) {
         into("icons")
