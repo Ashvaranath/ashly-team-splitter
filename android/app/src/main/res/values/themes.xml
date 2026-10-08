@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.AshlyTeamSplitter" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:statusBarColor">#00BCD4</item>
+        <item name="android:navigationBarColor">#38D9EE</item>
+        <item name="android:windowBackground">#FFFFFF</item>
+    </style>
+</resources>
