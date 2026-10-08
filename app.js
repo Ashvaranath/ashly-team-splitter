@@ -135,6 +135,10 @@ function renumberPlaceholders() {
   });
 }
 
+function updatePlayerListScroll() {
+  listEl.classList.toggle("is-scrollable", players.length >= 20);
+}
+
 function bindChip(player, chip, category) {
   chip.addEventListener("click", () => {
     if (player.pos === category.code) {
@@ -203,7 +207,12 @@ function applySportChange() {
   clearResult();
 }
 
-function createPlayer() {
+function createPlayer(options = {}) {
+  const targetPlayers = options.players || players;
+  const targetList = options.listEl || listEl;
+  const onChange = options.onChange || null;
+  const useMainExtras = !options.players;
+
   const player = { id: nextId++, name: "", rating: DEFAULT_RATING, pos: null };
 
   const row = document.createElement("div");
@@ -219,6 +228,7 @@ function createPlayer() {
   input.autocomplete = "off";
   input.addEventListener("input", () => {
     player.name = input.value;
+    if (onChange) onChange();
   });
 
   const positionsEl = document.createElement("div");
@@ -229,7 +239,9 @@ function createPlayer() {
     row.classList.add("focused");
     updateChips(player);
     if (document.activeElement === input) {
-      setTimeout(() => input.scrollIntoView({ block: "center", inline: "nearest" }), 300);
+      setTimeout(() => {
+        row.scrollIntoView({ block: "nearest", inline: "nearest" });
+      }, 50);
     }
   });
   row.addEventListener("focusout", (event) => {
@@ -248,6 +260,7 @@ function createPlayer() {
   minus.addEventListener("click", () => {
     player.rating = Math.max(MIN_RATING, player.rating - 1);
     updateRating(player);
+    if (onChange) onChange();
   });
 
   const value = document.createElement("span");
@@ -268,6 +281,7 @@ function createPlayer() {
   plus.addEventListener("click", () => {
     player.rating = Math.min(MAX_RATING, player.rating + 1);
     updateRating(player);
+    if (onChange) onChange();
   });
 
   rating.append(minus, value, plus);
@@ -278,12 +292,18 @@ function createPlayer() {
   remove.textContent = "\u2715";
   remove.setAttribute("aria-label", "Delete player");
   remove.addEventListener("click", () => {
-    const index = players.indexOf(player);
+    const index = targetPlayers.indexOf(player);
     if (index === -1) return;
-    players.splice(index, 1);
+    targetPlayers.splice(index, 1);
     row.remove();
-    renumberPlaceholders();
-    renderLegend();
+    targetPlayers.forEach((entry, entryIndex) => {
+      entry.input.placeholder = `player${entryIndex + 1}`;
+    });
+    if (useMainExtras) {
+      updatePlayerListScroll();
+      renderLegend();
+    }
+    if (onChange) onChange();
   });
 
   row.append(nameCell, rating, remove);
@@ -299,12 +319,15 @@ function createPlayer() {
     plusEl: plus,
   });
 
-  players.push(player);
-  listEl.appendChild(row);
+  targetPlayers.push(player);
+  targetList.appendChild(row);
 
   rebuildChips(player);
   updateRating(player);
-  renumberPlaceholders();
+  targetPlayers.forEach((entry, entryIndex) => {
+    entry.input.placeholder = `player${entryIndex + 1}`;
+  });
+  if (useMainExtras) updatePlayerListScroll();
 
   return player;
 }
@@ -1192,12 +1215,146 @@ document.getElementById("addPlayer").addEventListener("click", () => {
   showPositionsUntilAdd = false;
   const player = createPlayer();
   renderLegend();
-  player.input.focus();
+  if (listEl.classList.contains("is-scrollable")) {
+    listEl.scrollTop = listEl.scrollHeight;
+  }
+  player.input.focus({ preventScroll: true });
 });
 splitButton.addEventListener("click", renderResult);
 resultEl.addEventListener("click", (event) => {
   const closeButton = event.target.closest("#closeResult");
   if (closeButton) closeResultWithAnimation(closeButton);
+});
+
+const RATINGS_STORAGE_KEY = "ats_saved_ratings";
+const ratingsOverlay = document.getElementById("ratingsOverlay");
+const ratingsListEl = document.getElementById("ratingsList");
+const ratingsAddPlayer = document.getElementById("ratingsAddPlayer");
+const ratingsSaveButton = document.getElementById("ratingsSaveButton");
+const ratingsClose = document.getElementById("ratingsClose");
+const ratingsConfirm = document.getElementById("ratingsConfirm");
+const ratingsConfirmCancel = document.getElementById("ratingsConfirmCancel");
+const ratingsConfirmClose = document.getElementById("ratingsConfirmClose");
+const ratingsPlayers = [];
+let ratingsDirty = false;
+
+function ratingsStorageKey(username) {
+  return `${RATINGS_STORAGE_KEY}:${username}`;
+}
+
+function readSavedRatings(username) {
+  try {
+    const raw = localStorage.getItem(ratingsStorageKey(username));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function writeSavedRatings(username, squad) {
+  localStorage.setItem(ratingsStorageKey(username), JSON.stringify(squad));
+}
+
+function markRatingsDirty() {
+  ratingsDirty = true;
+}
+
+function clearRatingsEditor() {
+  ratingsPlayers.splice(0, ratingsPlayers.length);
+  ratingsListEl.replaceChildren();
+}
+
+function fillRatingsEditor(saved) {
+  clearRatingsEditor();
+  const starter = saved.length ? saved : [{ name: "", rating: DEFAULT_RATING, pos: null }, { name: "", rating: DEFAULT_RATING, pos: null }];
+  starter.forEach((entry) => {
+    const player = createPlayer({
+      players: ratingsPlayers,
+      listEl: ratingsListEl,
+      onChange: markRatingsDirty,
+    });
+    player.name = entry.name || "";
+    player.rating = entry.rating || DEFAULT_RATING;
+    player.pos = entry.pos || null;
+    player.input.value = player.name;
+    rebuildChips(player);
+    updateRating(player);
+  });
+  ratingsDirty = false;
+}
+
+function openSaveRatingsEditor() {
+  const username = window.AshlyAuth && window.AshlyAuth.currentUser();
+  if (!username) {
+    window.AshlyAuth.openLogin();
+    return;
+  }
+  fillRatingsEditor(readSavedRatings(username));
+  ratingsOverlay.hidden = false;
+}
+
+function forceCloseRatingsEditor() {
+  ratingsConfirm.hidden = true;
+  ratingsOverlay.hidden = true;
+  clearRatingsEditor();
+  ratingsDirty = false;
+}
+
+function requestCloseRatingsEditor() {
+  if (!ratingsDirty) {
+    forceCloseRatingsEditor();
+    return;
+  }
+  ratingsConfirm.hidden = false;
+}
+
+function saveRatingsFromEditor() {
+  const username = window.AshlyAuth && window.AshlyAuth.currentUser();
+  if (!username) {
+    window.AshlyAuth.openLogin();
+    return;
+  }
+  const squad = ratingsPlayers.map((player, index) => ({
+    name: player.name.trim() || `Player ${index + 1}`,
+    rating: player.rating,
+    pos: player.pos,
+  }));
+  writeSavedRatings(username, squad);
+  ratingsDirty = false;
+  forceCloseRatingsEditor();
+}
+
+ratingsAddPlayer.addEventListener("click", () => {
+  const player = createPlayer({
+    players: ratingsPlayers,
+    listEl: ratingsListEl,
+    onChange: markRatingsDirty,
+  });
+  markRatingsDirty();
+  player.input.focus({ preventScroll: true });
+});
+
+ratingsSaveButton.addEventListener("click", saveRatingsFromEditor);
+ratingsClose.addEventListener("click", requestCloseRatingsEditor);
+ratingsConfirmCancel.addEventListener("click", () => {
+  ratingsConfirm.hidden = true;
+});
+ratingsConfirmClose.addEventListener("click", forceCloseRatingsEditor);
+
+ratingsListEl.addEventListener("click", (event) => {
+  if (event.target.closest(".pos, .delete, .rating button")) markRatingsDirty();
+});
+
+document.addEventListener("ats-open-save-ratings", openSaveRatingsEditor);
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (!ratingsConfirm.hidden) {
+    ratingsConfirm.hidden = true;
+    return;
+  }
+  if (!ratingsOverlay.hidden) requestCloseRatingsEditor();
 });
 
 createPlayer();

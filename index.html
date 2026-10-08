@@ -18,14 +18,30 @@
         <h1 class="page-title">Ashly Team Splitter</h1>
         <p id="sportTagline" class="tagline">Fair squads. Match-ready in seconds.</p>
       </div>
-      <div class="connect-wrap">
-        <button type="button" id="connectButton" class="connect-button" aria-expanded="false" aria-controls="connectCloth">
-          Connect me
-        </button>
-        <div id="connectCloth" class="connect-cloth" hidden>
-          <p>Creator: <strong>Ashly Mathew</strong></p>
-          <p>Email: <a href="mailto:ashvaranath@gmail.com">ashvaranath@gmail.com</a></p>
-          <p>Instagram: <a href="https://www.instagram.com/ashly_varanath" target="_blank" rel="noopener noreferrer">@ashly_varanath</a></p>
+      <div class="header-actions">
+        <div class="connect-wrap">
+          <button type="button" id="connectButton" class="connect-button" aria-expanded="false" aria-controls="connectCloth">
+            Connect me
+          </button>
+          <div id="connectCloth" class="connect-cloth" hidden>
+            <p>Creator: <strong>Ashly Mathew</strong></p>
+            <p>Email: <a href="mailto:ashvaranath@gmail.com">ashvaranath@gmail.com</a></p>
+            <p>Instagram: <a href="https://www.instagram.com/ashly_varanath" target="_blank" rel="noopener noreferrer">@ashly_varanath</a></p>
+          </div>
+        </div>
+        <div class="account-wrap">
+          <button type="button" id="accountButton" class="account-button" aria-expanded="false" aria-controls="accountMenu" aria-label="Account" title="Account">
+            <svg class="account-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="8" r="4" fill="currentColor"/>
+              <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <div id="accountMenu" class="account-menu" hidden>
+            <p id="accountUsername" class="account-username" hidden></p>
+            <button type="button" id="accountLoginOption" class="account-menu-item">Login</button>
+            <button type="button" id="accountSaveRatingsOption" class="account-menu-item" hidden>Save ratings</button>
+            <button type="button" id="accountLogoutOption" class="account-menu-item" hidden>Logout</button>
+          </div>
         </div>
       </div>
     </header>
@@ -514,6 +530,60 @@
     <img src="icons/profile.jpg" alt="Ashly" />
   </div>
 
+  <div id="authOverlay" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="authTitle" hidden>
+    <div class="auth-card" id="authCard">
+      <button type="button" id="authClose" class="auth-close" aria-label="Close">&#10005;</button>
+      <p class="auth-eyebrow" id="authEyebrow">Welcome</p>
+      <h2 class="auth-title" id="authTitle">Login</h2>
+      <p class="auth-subtitle" id="authSubtitle">Sign in to save your player ratings later.</p>
+      <form id="authForm" class="auth-form" autocomplete="on">
+        <label class="auth-field">
+          <span>Username</span>
+          <input id="authUsername" name="username" type="text" autocomplete="username" />
+        </label>
+        <label class="auth-field">
+          <span>Password</span>
+          <input id="authPassword" name="password" type="password" autocomplete="current-password" />
+        </label>
+        <p id="authError" class="auth-error" role="alert" hidden></p>
+        <button type="submit" id="authSubmit" class="auth-submit">Login</button>
+      </form>
+      <p class="auth-switch" id="authSwitchLine">
+        No account yet?
+        <button type="button" id="authSwitch" class="auth-switch-btn">Register</button>
+      </p>
+    </div>
+  </div>
+
+  <div id="ratingsOverlay" class="ratings-overlay" role="dialog" aria-modal="true" aria-label="Save ratings" hidden>
+    <section class="card ratings-card">
+      <button type="button" id="ratingsClose" class="ratings-close" aria-label="Close">&#10005;</button>
+      <div class="list-head">
+        <span class="col-players">Players</span>
+        <span class="col-rating">Rating</span>
+        <span class="col-actions"></span>
+      </div>
+      <div id="ratingsList" class="player-list"></div>
+      <p id="ratingsWarning" class="warning" role="alert" aria-live="polite" hidden></p>
+      <div class="actions">
+        <button id="ratingsAddPlayer" type="button" class="btn btn-ghost">+ Add Player</button>
+        <button id="ratingsSaveButton" type="button" class="btn btn-primary">Save rating</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="ratingsConfirm" class="ratings-confirm" role="dialog" aria-modal="true" aria-labelledby="ratingsConfirmTitle" hidden>
+    <div class="ratings-confirm-card">
+      <h3 id="ratingsConfirmTitle">Ratings have not been saved</h3>
+      <p>Close without saving your player ratings?</p>
+      <div class="ratings-confirm-actions">
+        <button type="button" id="ratingsConfirmCancel" class="btn btn-ghost">Cancel</button>
+        <button type="button" id="ratingsConfirmClose" class="btn btn-primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
