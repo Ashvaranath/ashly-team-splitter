@@ -72,6 +72,7 @@ function positionKeys() {
 
 const listEl = document.getElementById("playerList");
 const warningEl = document.getElementById("warning");
+const authBannerEl = document.getElementById("authBanner");
 const resultEl = document.getElementById("result");
 const splitButton = document.getElementById("splitTeam");
 const legendEl = document.getElementById("legend");
@@ -89,14 +90,37 @@ const badmintonImpactEl = document.getElementById("badmintonImpact");
 let nextId = 1;
 const players = [];
 let warningTimer = null;
+let authBannerTimer = null;
 
 function showWarning(message) {
+  warningEl.classList.remove("is-success");
   warningEl.textContent = message;
   warningEl.hidden = false;
   clearTimeout(warningTimer);
   warningTimer = setTimeout(() => {
     warningEl.hidden = true;
   }, 3000);
+}
+
+function showSaveSuccess(message) {
+  warningEl.classList.add("is-success");
+  warningEl.textContent = message;
+  warningEl.hidden = false;
+  clearTimeout(warningTimer);
+  warningTimer = setTimeout(() => {
+    warningEl.hidden = true;
+    warningEl.classList.remove("is-success");
+  }, 5000);
+}
+
+function showAuthBanner(message) {
+  if (!authBannerEl) return;
+  authBannerEl.textContent = message;
+  authBannerEl.hidden = false;
+  clearTimeout(authBannerTimer);
+  authBannerTimer = setTimeout(() => {
+    authBannerEl.hidden = true;
+  }, 5000);
 }
 
 function keeperCount(excludeId) {
@@ -228,6 +252,7 @@ function createPlayer(options = {}) {
   input.autocomplete = "off";
   input.addEventListener("input", () => {
     player.name = input.value;
+    if (useMainExtras) updateHeaderSaveButton();
     if (onChange) onChange();
   });
 
@@ -302,6 +327,7 @@ function createPlayer(options = {}) {
     if (useMainExtras) {
       updatePlayerListScroll();
       renderLegend();
+      updateHeaderSaveButton();
     }
     if (onChange) onChange();
   });
@@ -327,7 +353,10 @@ function createPlayer(options = {}) {
   targetPlayers.forEach((entry, entryIndex) => {
     entry.input.placeholder = `player${entryIndex + 1}`;
   });
-  if (useMainExtras) updatePlayerListScroll();
+  if (useMainExtras) {
+    updatePlayerListScroll();
+    updateHeaderSaveButton();
+  }
 
   return player;
 }
@@ -1226,7 +1255,7 @@ resultEl.addEventListener("click", (event) => {
   if (closeButton) closeResultWithAnimation(closeButton);
 });
 
-const RATINGS_STORAGE_KEY = "ats_saved_ratings";
+const headerSaveRatings = document.getElementById("headerSaveRatings");
 const ratingsOverlay = document.getElementById("ratingsOverlay");
 const ratingsListEl = document.getElementById("ratingsList");
 const ratingsAddPlayer = document.getElementById("ratingsAddPlayer");
@@ -1235,25 +1264,143 @@ const ratingsClose = document.getElementById("ratingsClose");
 const ratingsConfirm = document.getElementById("ratingsConfirm");
 const ratingsConfirmCancel = document.getElementById("ratingsConfirmCancel");
 const ratingsConfirmClose = document.getElementById("ratingsConfirmClose");
+const ratingsWarningEl = document.getElementById("ratingsWarning");
 const ratingsPlayers = [];
 let ratingsDirty = false;
+let ratingsWarningTimer = null;
 
-function ratingsStorageKey(username) {
-  return `${RATINGS_STORAGE_KEY}:${username}`;
+let pendingSaveAfterAuth = false;
+let mainListSaveInFlight = false;
+
+function hasNamedMainPlayer() {
+  return players.some((player) => player.name.length >= 1);
 }
 
-function readSavedRatings(username) {
+function collectMainListSquad() {
+  return players
+    .filter((player) => player.name.length >= 1)
+    .map((player) => ({
+      name: player.name,
+      rating: player.rating,
+      pos: player.pos,
+    }));
+}
+
+function updateHeaderSaveButton() {
+  if (!headerSaveRatings) return;
+  const canSave = hasNamedMainPlayer() && !mainListSaveInFlight;
+  headerSaveRatings.hidden = !hasNamedMainPlayer();
+  headerSaveRatings.disabled = !canSave;
+}
+
+async function saveMainListRatings() {
+  if (!hasNamedMainPlayer()) {
+    pendingSaveAfterAuth = false;
+    updateHeaderSaveButton();
+    return;
+  }
+
+  const userId = window.AshlyAuth && window.AshlyAuth.currentUserId();
+  if (!userId) {
+    pendingSaveAfterAuth = true;
+    window.AshlyAuth.openLogin();
+    return;
+  }
+
+  if (mainListSaveInFlight) return;
+  mainListSaveInFlight = true;
+  pendingSaveAfterAuth = false;
+
+  const squad = collectMainListSquad();
+
+  headerSaveRatings.disabled = true;
+  headerSaveRatings.classList.add("is-saving");
+  headerSaveRatings.classList.remove("is-saved");
+  headerSaveRatings.setAttribute("aria-label", "Saving");
+  headerSaveRatings.title = "Saving…";
   try {
-    const raw = localStorage.getItem(ratingsStorageKey(username));
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    await writeSavedRatings(userId, squad);
+    headerSaveRatings.classList.remove("is-saving");
+    headerSaveRatings.classList.add("is-saved");
+    headerSaveRatings.setAttribute("aria-label", "Saved");
+    headerSaveRatings.title = "Saved";
+    showSaveSuccess("Saved the ratings!\nyou can view/edit from your account");
+    setTimeout(() => {
+      headerSaveRatings.classList.remove("is-saved");
+      headerSaveRatings.setAttribute("aria-label", "Save");
+      headerSaveRatings.title = "Save";
+      mainListSaveInFlight = false;
+      updateHeaderSaveButton();
+    }, 1200);
   } catch (error) {
-    return [];
+    showWarning(error.message || "Could not save ratings.");
+    headerSaveRatings.classList.remove("is-saving", "is-saved");
+    headerSaveRatings.setAttribute("aria-label", "Save");
+    headerSaveRatings.title = "Save";
+    mainListSaveInFlight = false;
+    updateHeaderSaveButton();
   }
 }
 
-function writeSavedRatings(username, squad) {
-  localStorage.setItem(ratingsStorageKey(username), JSON.stringify(squad));
+document.addEventListener("ats-auth-change", (event) => {
+  const userId = event.detail && event.detail.userId;
+  if (userId && pendingSaveAfterAuth) {
+    saveMainListRatings();
+  }
+});
+
+document.addEventListener("ats-auth-close", () => {
+  const userId = window.AshlyAuth && window.AshlyAuth.currentUserId();
+  if (!userId) pendingSaveAfterAuth = false;
+});
+
+document.addEventListener("ats-auth-success", (event) => {
+  const mode = event.detail && event.detail.mode;
+  const name = (event.detail && event.detail.username) || "";
+  if (mode === "register") {
+    showAuthBanner(
+      name
+        ? `Welcome, ${name}!\nRegistration successful.`
+        : "Welcome!\nRegistration successful."
+    );
+    return;
+  }
+  showAuthBanner(
+    name ? `Welcome, ${name}!\nYou are successfully logged in.` : "Welcome!\nYou are successfully logged in."
+  );
+});
+
+function showRatingsWarning(message) {
+  if (!ratingsWarningEl) return;
+  ratingsWarningEl.textContent = message;
+  ratingsWarningEl.hidden = !message;
+  clearTimeout(ratingsWarningTimer);
+  if (message) {
+    ratingsWarningTimer = setTimeout(() => {
+      ratingsWarningEl.hidden = true;
+    }, 4000);
+  }
+}
+
+async function readSavedRatings(userId) {
+  const { data, error } = await window.AshlySupabase.from("ratings")
+    .select("squad")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return Array.isArray(data && data.squad) ? data.squad : [];
+}
+
+async function writeSavedRatings(userId, squad) {
+  const { error } = await window.AshlySupabase.from("ratings").upsert(
+    {
+      user_id: userId,
+      squad,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+  if (error) throw error;
 }
 
 function markRatingsDirty() {
@@ -1267,7 +1414,12 @@ function clearRatingsEditor() {
 
 function fillRatingsEditor(saved) {
   clearRatingsEditor();
-  const starter = saved.length ? saved : [{ name: "", rating: DEFAULT_RATING, pos: null }, { name: "", rating: DEFAULT_RATING, pos: null }];
+  const starter = saved.length
+    ? saved
+    : [
+        { name: "", rating: DEFAULT_RATING, pos: null },
+        { name: "", rating: DEFAULT_RATING, pos: null },
+      ];
   starter.forEach((entry) => {
     const player = createPlayer({
       players: ratingsPlayers,
@@ -1284,14 +1436,21 @@ function fillRatingsEditor(saved) {
   ratingsDirty = false;
 }
 
-function openSaveRatingsEditor() {
-  const username = window.AshlyAuth && window.AshlyAuth.currentUser();
-  if (!username) {
+async function openSaveRatingsEditor() {
+  const userId = window.AshlyAuth && window.AshlyAuth.currentUserId();
+  if (!userId) {
     window.AshlyAuth.openLogin();
     return;
   }
-  fillRatingsEditor(readSavedRatings(username));
+  showRatingsWarning("");
   ratingsOverlay.hidden = false;
+  fillRatingsEditor([]);
+  try {
+    const saved = await readSavedRatings(userId);
+    fillRatingsEditor(saved);
+  } catch (error) {
+    showRatingsWarning(error.message || "Could not load saved ratings.");
+  }
 }
 
 function forceCloseRatingsEditor() {
@@ -1299,6 +1458,7 @@ function forceCloseRatingsEditor() {
   ratingsOverlay.hidden = true;
   clearRatingsEditor();
   ratingsDirty = false;
+  showRatingsWarning("");
 }
 
 function requestCloseRatingsEditor() {
@@ -1309,9 +1469,9 @@ function requestCloseRatingsEditor() {
   ratingsConfirm.hidden = false;
 }
 
-function saveRatingsFromEditor() {
-  const username = window.AshlyAuth && window.AshlyAuth.currentUser();
-  if (!username) {
+async function saveRatingsFromEditor() {
+  const userId = window.AshlyAuth && window.AshlyAuth.currentUserId();
+  if (!userId) {
     window.AshlyAuth.openLogin();
     return;
   }
@@ -1320,9 +1480,20 @@ function saveRatingsFromEditor() {
     rating: player.rating,
     pos: player.pos,
   }));
-  writeSavedRatings(username, squad);
-  ratingsDirty = false;
-  forceCloseRatingsEditor();
+  const previousLabel = ratingsSaveButton.textContent;
+  ratingsSaveButton.disabled = true;
+  ratingsSaveButton.textContent = "Saving…";
+  showRatingsWarning("");
+  try {
+    await writeSavedRatings(userId, squad);
+    ratingsDirty = false;
+    forceCloseRatingsEditor();
+  } catch (error) {
+    showRatingsWarning(error.message || "Could not save ratings.");
+  } finally {
+    ratingsSaveButton.disabled = false;
+    ratingsSaveButton.textContent = previousLabel;
+  }
 }
 
 ratingsAddPlayer.addEventListener("click", () => {
@@ -1335,7 +1506,13 @@ ratingsAddPlayer.addEventListener("click", () => {
   player.input.focus({ preventScroll: true });
 });
 
-ratingsSaveButton.addEventListener("click", saveRatingsFromEditor);
+headerSaveRatings.addEventListener("click", () => {
+  saveMainListRatings();
+});
+
+ratingsSaveButton.addEventListener("click", () => {
+  saveRatingsFromEditor();
+});
 ratingsClose.addEventListener("click", requestCloseRatingsEditor);
 ratingsConfirmCancel.addEventListener("click", () => {
   ratingsConfirm.hidden = true;
@@ -1359,3 +1536,4 @@ document.addEventListener("keydown", (event) => {
 
 createPlayer();
 createPlayer();
+updateHeaderSaveButton();
