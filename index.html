@@ -39,7 +39,12 @@
           <div id="accountMenu" class="account-menu" hidden>
             <p id="accountUsername" class="account-username" hidden></p>
             <button type="button" id="accountLoginOption" class="account-menu-item">Login</button>
-            <button type="button" id="accountSaveRatingsOption" class="account-menu-item" hidden>Ratings*</button>
+            <button type="button" id="accountSaveRatingsOption" class="account-menu-item account-menu-ratings" hidden>
+              <span>Player Ratings</span>
+              <svg class="account-menu-star" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M12 2.5l2.6 6.3 6.9.6-5.2 4.5 1.6 6.7L12 16.8 5.1 20.6l1.6-6.7L1.5 9.4l6.9-.6L12 2.5z"/>
+              </svg>
+            </button>
             <button type="button" id="accountLogoutOption" class="account-menu-item" hidden>Logout</button>
           </div>
         </div>
@@ -81,10 +86,36 @@
       <p id="warning" class="warning" role="alert" aria-live="polite" hidden></p>
 
       <div class="actions">
-        <button id="addPlayer" type="button" class="btn btn-ghost">+ Add Player</button>
+        <div class="add-player-wrap">
+          <button id="addPlayer" type="button" class="btn btn-ghost">+ Add Player</button>
+          <div id="savedPickerWrap" class="saved-picker-wrap" hidden>
+            <button type="button" id="savedPickerToggle" class="saved-picker-toggle" aria-expanded="false" aria-controls="savedPickerMenu" aria-label="More add options">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
+            </button>
+            <div id="savedPickerMenu" class="saved-picker-menu" hidden>
+              <button type="button" id="selectSavedPlayersOption" class="saved-picker-item">Select from Saved players</button>
+            </div>
+          </div>
+        </div>
         <button id="splitTeam" type="button" class="btn btn-primary">Split Team</button>
       </div>
     </section>
+
+    <div id="savedPlayersPanel" class="saved-players-panel" hidden>
+      <div class="saved-players-panel-head">
+        <span>Saved players</span>
+        <button type="button" id="savedPlayersClose" class="saved-players-close" aria-label="Close">&#10005;</button>
+      </div>
+      <div class="saved-players-toolbar">
+        <p class="saved-players-hint">Swipe Left / Select player for splitting</p>
+        <button type="button" id="savedPlayersSelectAll" class="saved-players-select-all">Select all</button>
+      </div>
+      <div id="savedPlayersList" class="saved-players-list"></div>
+      <button type="button" id="savedPlayersContinue" class="saved-players-continue" hidden>Continue</button>
+    </div>
+    <div id="savedSwipeDemo" class="saved-swipe-demo" hidden aria-hidden="true">
+      <img src="icons/swipe-finger.png" alt="" />
+    </div>
 
     <section id="result" class="result" hidden></section>
 
@@ -567,23 +598,57 @@
     </div>
   </div>
 
-  <div id="ratingsOverlay" class="ratings-overlay" role="dialog" aria-modal="true" aria-label="Save ratings" hidden>
-    <section class="card ratings-card">
-      <div class="ratings-card-top">
+  <div id="ratingsOverlay" class="ratings-overlay" role="dialog" aria-modal="true" aria-label="Player Ratings" hidden>
+    <div class="ratings-section">
+      <div class="ratings-section-head">
+        <h2 class="ratings-section-title">
+          Player Ratings
+          <svg class="ratings-section-star" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M12 2.5l2.6 6.3 6.9.6-5.2 4.5 1.6 6.7L12 16.8 5.1 20.6l1.6-6.7L1.5 9.4l6.9-.6L12 2.5z"/>
+          </svg>
+        </h2>
         <button type="button" id="ratingsClose" class="ratings-close" aria-label="Close">&#10005;</button>
       </div>
-      <div class="list-head">
-        <span class="col-players">Players</span>
-        <span class="col-rating">Rating</span>
-        <span class="col-actions"></span>
-      </div>
-      <div id="ratingsList" class="player-list"></div>
+
       <p id="ratingsWarning" class="warning" role="alert" aria-live="polite" hidden></p>
-      <div class="actions">
-        <button id="ratingsAddPlayer" type="button" class="btn btn-ghost">+ Add Player</button>
-        <button id="ratingsSaveButton" type="button" class="btn btn-primary">Save rating</button>
+
+      <div id="ratingsOverview" class="ratings-overview">
+        <div class="ratings-sets-bar">
+          <button type="button" id="ratingsCreateSet" class="ratings-create-set" hidden>Create new set</button>
+        </div>
+        <div id="ratingsSetGrid" class="ratings-set-grid"></div>
+        <p id="ratingsSaveToast" class="ratings-save-toast" role="status" aria-live="polite" hidden>Rating saved!</p>
       </div>
-    </section>
+
+      <section id="ratingsDetail" class="card ratings-card" hidden>
+        <div class="ratings-card-top">
+          <button type="button" id="ratingsSetClose" class="ratings-set-close" aria-label="Minimize set">&#10005;</button>
+        </div>
+        <div class="ratings-set-title-row">
+          <input id="ratingsSetNameInput" class="ratings-set-name-input" type="text" maxlength="40" value="Rating Set-1" aria-label="Set name" readonly />
+          <button type="button" id="ratingsSetNameEdit" class="ratings-set-name-edit" aria-label="Edit set name" title="Edit set name">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.04a1 1 0 0 0 0-1.41l-2.51-2.51a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.99-1.66z"/>
+            </svg>
+          </button>
+        </div>
+        <div class="list-head">
+          <span class="col-players">Players</span>
+          <span class="col-rating">Rating</span>
+          <span class="col-actions"></span>
+        </div>
+        <div id="ratingsList" class="player-list"></div>
+        <div class="actions">
+          <button id="ratingsAddPlayer" type="button" class="btn btn-ghost">+ Add Player</button>
+          <button id="ratingsSaveButton" type="button" class="btn ratings-save-btn">
+            <span class="ratings-save-label">Save Rating</span>
+            <svg class="ratings-save-star" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M12 2.5l2.6 6.3 6.9.6-5.2 4.5 1.6 6.7L12 16.8 5.1 20.6l1.6-6.7L1.5 9.4l6.9-.6L12 2.5z"/>
+            </svg>
+          </button>
+        </div>
+      </section>
+    </div>
   </div>
 
   <div id="ratingsConfirm" class="ratings-confirm" role="dialog" aria-modal="true" aria-labelledby="ratingsConfirmTitle" hidden>
@@ -593,6 +658,17 @@
       <div class="ratings-confirm-actions">
         <button type="button" id="ratingsConfirmCancel" class="btn btn-ghost">Cancel</button>
         <button type="button" id="ratingsConfirmClose" class="btn btn-primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ratingsDeleteConfirm" class="ratings-confirm" role="dialog" aria-modal="true" aria-labelledby="ratingsDeleteConfirmTitle" hidden>
+    <div class="ratings-confirm-card">
+      <h3 id="ratingsDeleteConfirmTitle">Delete this set?</h3>
+      <p id="ratingsDeleteConfirmText">This set and its players will be removed.</p>
+      <div class="ratings-confirm-actions">
+        <button type="button" id="ratingsDeleteCancel" class="btn btn-ghost">Cancel</button>
+        <button type="button" id="ratingsDeleteConfirmBtn" class="btn btn-primary ratings-delete-confirm-btn">Delete</button>
       </div>
     </div>
   </div>
