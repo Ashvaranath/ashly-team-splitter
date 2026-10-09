@@ -130,17 +130,40 @@ function keeperCount(excludeId) {
 }
 
 function updateChips(player) {
-  const showAll = player.row.classList.contains("focused");
+  const hasCodes = currentCodes().length > 0;
+  const open = hasCodes && player.row.classList.contains("pos-open");
   player.chips.forEach((chip) => {
     const selected = player.pos === chip.dataset.pos;
     chip.classList.toggle("selected", selected);
     chip.setAttribute("aria-pressed", String(selected));
-    chip.hidden = !showAll && !selected;
+    chip.hidden = false;
   });
-  player.positionsEl.hidden =
-    currentCodes().length === 0 || (!showAll && player.pos === null);
+  if (player.positionsEl) player.positionsEl.hidden = !open;
+  if (player.posToggle) {
+    player.posToggle.hidden = !hasCodes;
+    player.posToggle.setAttribute("aria-expanded", String(open));
+    player.posToggle.dataset.pos = player.pos || "";
+    player.posToggle.classList.toggle("has-selection", Boolean(player.pos));
+    if (player.pos) {
+      player.posToggle.textContent = player.pos;
+      player.posToggle.setAttribute("aria-label", `Position ${player.pos}. Change position`);
+    } else {
+      player.posToggle.innerHTML = POS_TOGGLE_ICON;
+      player.posToggle.setAttribute("aria-label", "Select position");
+    }
+  }
   player.row.classList.toggle("has-pos", player.pos !== null);
-  player.row.dataset.chipCount = String(currentCodes().length);
+}
+
+function closeOtherPosMenus(exceptPlayer) {
+  [players, ratingsPlayers].forEach((pool) => {
+    if (!Array.isArray(pool)) return;
+    pool.forEach((entry) => {
+      if (entry === exceptPlayer || !entry.row?.classList.contains("pos-open")) return;
+      entry.row.classList.remove("pos-open");
+      updateChips(entry);
+    });
+  });
 }
 
 function updateRating(player) {
@@ -153,18 +176,16 @@ function updateRating(player) {
   player.plusEl.disabled = player.rating >= MAX_RATING;
 }
 
-function renumberPlaceholders() {
-  players.forEach((player, index) => {
-    player.input.placeholder = `player${index + 1}`;
-  });
-}
-
 function updatePlayerListScroll() {
   listEl.classList.toggle("is-scrollable", players.length >= 20);
 }
 
+const POS_TOGGLE_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 14l5-5 5 5z"/></svg>';
+
 function bindChip(player, chip, category) {
-  chip.addEventListener("click", () => {
+  chip.addEventListener("click", (event) => {
+    event.stopPropagation();
     if (player.pos === category.code) {
       player.pos = null;
     } else {
@@ -178,6 +199,7 @@ function bindChip(player, chip, category) {
       }
       player.pos = category.code;
     }
+    player.row.classList.remove("pos-open");
     updateChips(player);
   });
 }
@@ -256,23 +278,41 @@ function createPlayer(options = {}) {
     if (onChange) onChange();
   });
 
+  const posToggle = document.createElement("button");
+  posToggle.type = "button";
+  posToggle.className = "pos-toggle";
+  posToggle.setAttribute("aria-label", "Select position");
+  posToggle.setAttribute("aria-expanded", "false");
+  posToggle.innerHTML = POS_TOGGLE_ICON;
+
   const positionsEl = document.createElement("div");
   positionsEl.className = "positions";
-  nameCell.append(input, positionsEl);
+  positionsEl.hidden = true;
+  nameCell.append(input, posToggle, positionsEl);
+
+  posToggle.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (currentCodes().length === 0) return;
+    const willOpen = !row.classList.contains("pos-open");
+    closeOtherPosMenus(player);
+    row.classList.toggle("pos-open", willOpen);
+    updateChips(player);
+  });
 
   row.addEventListener("focusin", () => {
     row.classList.add("focused");
-    updateChips(player);
     if (document.activeElement === input) {
-      setTimeout(() => {
-        row.scrollIntoView({ block: "nearest", inline: "nearest" });
-      }, 50);
+      const keepNameVisible = () => {
+        input.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+      };
+      setTimeout(keepNameVisible, 50);
+      setTimeout(keepNameVisible, 350);
     }
   });
   row.addEventListener("focusout", (event) => {
     if (row.contains(event.relatedTarget)) return;
     row.classList.remove("focused");
-    updateChips(player);
   });
 
   const rating = document.createElement("div");
@@ -337,6 +377,7 @@ function createPlayer(options = {}) {
   Object.assign(player, {
     row,
     input,
+    posToggle,
     positionsEl,
     chips: [],
     pips,
@@ -1238,9 +1279,13 @@ connectCloth.addEventListener("transitionend", (event) => {
 
 document.addEventListener("click", (event) => {
   if (!event.target.closest(".connect-wrap")) closeConnect();
+  if (!event.target.closest(".pos-toggle, .positions")) closeOtherPosMenus(null);
+  if (!event.target.closest(".saved-picker-wrap")) closeSavedPickerMenu();
 });
 
 document.getElementById("addPlayer").addEventListener("click", () => {
+  closeSavedPlayersPanel();
+  closeSavedPickerMenu();
   showPositionsUntilAdd = false;
   const player = createPlayer();
   renderLegend();
@@ -1325,6 +1370,7 @@ async function saveMainListRatings() {
     headerSaveRatings.setAttribute("aria-label", "Saved");
     headerSaveRatings.title = "Saved";
     showSaveSuccess("Saved the ratings!\nyou can view/edit from your account");
+    refreshSavedPickerVisibility();
     setTimeout(() => {
       headerSaveRatings.classList.remove("is-saved");
       headerSaveRatings.setAttribute("aria-label", "Save");
@@ -1347,6 +1393,7 @@ document.addEventListener("ats-auth-change", (event) => {
   if (userId && pendingSaveAfterAuth) {
     saveMainListRatings();
   }
+  refreshSavedPickerVisibility();
 });
 
 document.addEventListener("ats-auth-close", () => {
@@ -1382,25 +1429,271 @@ function showRatingsWarning(message) {
   }
 }
 
-async function readSavedRatings(userId) {
+const MAX_RATING_SETS = 4;
+const DEFAULT_SET_NAME = "Rating Set-1";
+
+const ratingsCreateSet = document.getElementById("ratingsCreateSet");
+const ratingsOverview = document.getElementById("ratingsOverview");
+const ratingsDetail = document.getElementById("ratingsDetail");
+const ratingsSetGrid = document.getElementById("ratingsSetGrid");
+const ratingsSetClose = document.getElementById("ratingsSetClose");
+const ratingsSetNameInput = document.getElementById("ratingsSetNameInput");
+const ratingsSetNameEdit = document.getElementById("ratingsSetNameEdit");
+const ratingsSaveToast = document.getElementById("ratingsSaveToast");
+const ratingsDeleteConfirm = document.getElementById("ratingsDeleteConfirm");
+const ratingsDeleteConfirmText = document.getElementById("ratingsDeleteConfirmText");
+const ratingsDeleteCancel = document.getElementById("ratingsDeleteCancel");
+const ratingsDeleteConfirmBtn = document.getElementById("ratingsDeleteConfirmBtn");
+const ratingsSaveLabel = ratingsSaveButton
+  ? ratingsSaveButton.querySelector(".ratings-save-label")
+  : null;
+
+function ratingSetNameForIndex(index) {
+  return `Rating Set-${index + 1}`;
+}
+
+let ratingsStore = null;
+let editingSetName = false;
+let ratingsSaveToastTimer = null;
+let ratingsHasExistingSet = false;
+let ratingsViewMode = "overview";
+
+function newRatingsSetId() {
+  return `set_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function createEmptyRatingsStore() {
+  const id = "default";
+  return {
+    version: 2,
+    activeSetId: id,
+    sets: [{ id, name: DEFAULT_SET_NAME, players: [] }],
+  };
+}
+
+function normalizeRatingsStore(raw) {
+  if (Array.isArray(raw)) {
+    return {
+      version: 2,
+      activeSetId: "default",
+      sets: [{ id: "default", name: DEFAULT_SET_NAME, players: raw }],
+    };
+  }
+  if (raw && Array.isArray(raw.sets) && raw.sets.length) {
+    const sets = raw.sets.slice(0, MAX_RATING_SETS).map((set, index) => {
+      let name = set && String(set.name || "").trim();
+      if (!name || name === "Default Set") name = ratingSetNameForIndex(index);
+      return {
+        id: set && set.id ? String(set.id) : index === 0 ? "default" : newRatingsSetId(),
+        name,
+        players: Array.isArray(set && set.players)
+          ? set.players
+          : Array.isArray(set && set.squad)
+            ? set.squad
+            : [],
+      };
+    });
+    const activeSetId =
+      sets.some((set) => set.id === raw.activeSetId) ? raw.activeSetId : sets[0].id;
+    return { version: 2, activeSetId, sets };
+  }
+  return createEmptyRatingsStore();
+}
+
+function getActiveRatingsSet(store = ratingsStore) {
+  if (!store || !store.sets.length) return null;
+  return store.sets.find((set) => set.id === store.activeSetId) || store.sets[0];
+}
+
+function flattenRatingsPlayers(store) {
+  const seen = new Set();
+  const out = [];
+  (store && store.sets ? store.sets : []).forEach((set) => {
+    (set.players || []).forEach((entry) => {
+      const key = String((entry && entry.name) || "")
+        .trim()
+        .toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      out.push(entry);
+    });
+  });
+  return out;
+}
+
+function collectRatingsEditorSquad() {
+  return ratingsPlayers.map((player, index) => ({
+    name: player.name.trim() || `Player ${index + 1}`,
+    rating: player.rating,
+    pos: player.pos,
+  }));
+}
+
+function syncActiveSetFromEditor() {
+  const active = getActiveRatingsSet();
+  if (!active) return;
+  active.players = collectRatingsEditorSquad();
+  if (ratingsSetNameInput) {
+    const name = ratingsSetNameInput.value.trim() || DEFAULT_SET_NAME;
+    active.name = name;
+    ratingsSetNameInput.value = name;
+  }
+}
+
+async function readRatingsStore(userId) {
   const { data, error } = await window.AshlySupabase.from("ratings")
     .select("squad")
     .eq("user_id", userId)
     .maybeSingle();
   if (error) throw error;
-  return Array.isArray(data && data.squad) ? data.squad : [];
+  return normalizeRatingsStore(data && data.squad);
 }
 
-async function writeSavedRatings(userId, squad) {
+async function writeRatingsStore(userId, store) {
+  const payload = normalizeRatingsStore(store);
   const { error } = await window.AshlySupabase.from("ratings").upsert(
     {
       user_id: userId,
-      squad,
+      squad: payload,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" }
   );
   if (error) throw error;
+  return payload;
+}
+
+/** Flat player list for the split picker (all sets, unique names). */
+async function readSavedRatings(userId) {
+  const store = await readRatingsStore(userId);
+  return flattenRatingsPlayers(store);
+}
+
+async function writeSavedRatings(userId, squad) {
+  const store = await readRatingsStore(userId);
+  const active = getActiveRatingsSet(store);
+  if (active) active.players = squad;
+  await writeRatingsStore(userId, store);
+}
+
+function setHasNamedPlayers(set) {
+  return Array.isArray(set && set.players) && set.players.some((entry) => String((entry && entry.name) || "").trim());
+}
+
+function updateRatingsCreateSetButton() {
+  if (!ratingsCreateSet || !ratingsStore) return;
+  const atLimit = ratingsStore.sets.length >= MAX_RATING_SETS;
+  const canShow =
+    ratingsHasExistingSet &&
+    ratingsStore.sets.length >= 1 &&
+    !atLimit &&
+    ratingsViewMode === "overview";
+  ratingsCreateSet.hidden = !canShow;
+}
+
+function showRatingsOverview() {
+  ratingsViewMode = "overview";
+  if (ratingsOverview) ratingsOverview.hidden = false;
+  if (ratingsDetail) ratingsDetail.hidden = true;
+  clearRatingsEditor();
+  renderRatingsSetGrid();
+  updateRatingsCreateSetButton();
+}
+
+function showRatingsDetail(setId) {
+  if (!ratingsStore) return;
+  const target = ratingsStore.sets.find((set) => set.id === setId);
+  if (!target) return;
+  ratingsStore.activeSetId = setId;
+  ratingsViewMode = "detail";
+  if (ratingsOverview) ratingsOverview.hidden = true;
+  if (ratingsDetail) ratingsDetail.hidden = false;
+  updateRatingsSetTitle();
+  fillRatingsEditor(Array.isArray(target.players) ? target.players : []);
+  updateRatingsCreateSetButton();
+  if (ratingsDetail) ratingsDetail.scrollTop = 0;
+  showRatingsWarning("");
+}
+
+function renderRatingsSetGrid() {
+  if (!ratingsSetGrid || !ratingsStore) return;
+  ratingsSetGrid.replaceChildren();
+  ratingsStore.sets.forEach((set) => {
+    const tile = document.createElement("div");
+    tile.className = "ratings-set-tile";
+    tile.dataset.setId = set.id;
+    tile.setAttribute("role", "button");
+    tile.tabIndex = 0;
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "ratings-set-delete";
+    deleteBtn.setAttribute("aria-label", `Delete ${set.name || DEFAULT_SET_NAME}`);
+    deleteBtn.title = "Delete set";
+    deleteBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+    deleteBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      requestDeleteRatingsSet(set.id);
+    });
+
+    const name = document.createElement("span");
+    name.className = "ratings-set-tile-name";
+    name.textContent = set.name || DEFAULT_SET_NAME;
+
+    const playersWrap = document.createElement("span");
+    playersWrap.className = "ratings-set-tile-players";
+    const names = (set.players || [])
+      .map((entry) => String((entry && entry.name) || "").trim())
+      .filter(Boolean)
+      .slice(0, 2);
+
+    if (!names.length) {
+      const empty = document.createElement("span");
+      empty.className = "ratings-set-tile-empty";
+      empty.textContent = "No players yet";
+      playersWrap.appendChild(empty);
+    } else {
+      names.forEach((playerName) => {
+        const line = document.createElement("span");
+        line.className = "ratings-set-tile-player";
+        line.textContent = playerName;
+        playersWrap.appendChild(line);
+      });
+    }
+
+    tile.append(deleteBtn, name, playersWrap);
+    tile.addEventListener("click", () => showRatingsDetail(set.id));
+    tile.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        showRatingsDetail(set.id);
+      }
+    });
+    ratingsSetGrid.appendChild(tile);
+  });
+  updateRatingsCreateSetButton();
+}
+
+function updateRatingsSetTitle() {
+  const active = getActiveRatingsSet();
+  if (!ratingsSetNameInput || !active) return;
+  ratingsSetNameInput.value = active.name || DEFAULT_SET_NAME;
+  ratingsSetNameInput.readOnly = true;
+  ratingsSetNameInput.classList.remove("is-editing");
+  editingSetName = false;
+}
+
+function scrollRatingsWindowToActions() {
+  if (!ratingsOverlay || ratingsOverlay.hidden) return;
+  requestAnimationFrame(() => {
+    const actions = ratingsDetail && ratingsDetail.querySelector(".actions");
+    if (actions) {
+      actions.scrollIntoView({ block: "end", behavior: "smooth" });
+      return;
+    }
+    ratingsOverlay.scrollTop = ratingsOverlay.scrollHeight;
+  });
 }
 
 function markRatingsDirty() {
@@ -1409,17 +1702,19 @@ function markRatingsDirty() {
 
 function clearRatingsEditor() {
   ratingsPlayers.splice(0, ratingsPlayers.length);
-  ratingsListEl.replaceChildren();
+  if (ratingsListEl) ratingsListEl.replaceChildren();
+}
+
+function blankRatingsEntries() {
+  return [
+    { name: "", rating: DEFAULT_RATING, pos: null },
+    { name: "", rating: DEFAULT_RATING, pos: null },
+  ];
 }
 
 function fillRatingsEditor(saved) {
   clearRatingsEditor();
-  const starter = saved.length
-    ? saved
-    : [
-        { name: "", rating: DEFAULT_RATING, pos: null },
-        { name: "", rating: DEFAULT_RATING, pos: null },
-      ];
+  const starter = saved.length ? saved : blankRatingsEntries();
   starter.forEach((entry) => {
     const player = createPlayer({
       players: ratingsPlayers,
@@ -1436,6 +1731,21 @@ function fillRatingsEditor(saved) {
   ratingsDirty = false;
 }
 
+function showRatingsSaveToast() {
+  if (!ratingsSaveToast) return;
+  ratingsSaveToast.hidden = false;
+  clearTimeout(ratingsSaveToastTimer);
+  ratingsSaveToastTimer = setTimeout(() => {
+    ratingsSaveToast.hidden = true;
+  }, 1000);
+}
+
+function minimizeRatingsSet() {
+  if (ratingsViewMode === "detail") syncActiveSetFromEditor();
+  showRatingsOverview();
+  showRatingsWarning("");
+}
+
 async function openSaveRatingsEditor() {
   const userId = window.AshlyAuth && window.AshlyAuth.currentUserId();
   if (!userId) {
@@ -1443,11 +1753,16 @@ async function openSaveRatingsEditor() {
     return;
   }
   showRatingsWarning("");
+  if (ratingsSaveToast) ratingsSaveToast.hidden = true;
   ratingsOverlay.hidden = false;
-  fillRatingsEditor([]);
+  document.body.classList.add("ratings-open");
+  ratingsStore = createEmptyRatingsStore();
+  ratingsHasExistingSet = false;
+  showRatingsOverview();
   try {
-    const saved = await readSavedRatings(userId);
-    fillRatingsEditor(saved);
+    ratingsStore = await readRatingsStore(userId);
+    ratingsHasExistingSet = ratingsStore.sets.some(setHasNamedPlayers);
+    showRatingsOverview();
   } catch (error) {
     showRatingsWarning(error.message || "Could not load saved ratings.");
   }
@@ -1455,9 +1770,20 @@ async function openSaveRatingsEditor() {
 
 function forceCloseRatingsEditor() {
   ratingsConfirm.hidden = true;
+  cancelDeleteRatingsSet();
   ratingsOverlay.hidden = true;
+  document.body.classList.remove("ratings-open");
   clearRatingsEditor();
   ratingsDirty = false;
+  ratingsStore = null;
+  ratingsHasExistingSet = false;
+  editingSetName = false;
+  ratingsViewMode = "overview";
+  clearTimeout(ratingsSaveToastTimer);
+  if (ratingsSaveToast) ratingsSaveToast.hidden = true;
+  if (ratingsSetGrid) ratingsSetGrid.replaceChildren();
+  if (ratingsOverview) ratingsOverview.hidden = false;
+  if (ratingsDetail) ratingsDetail.hidden = true;
   showRatingsWarning("");
 }
 
@@ -1469,30 +1795,121 @@ function requestCloseRatingsEditor() {
   ratingsConfirm.hidden = false;
 }
 
+function createNewRatingsSet() {
+  if (!ratingsStore) return;
+  if (!ratingsHasExistingSet) {
+    showRatingsWarning("Save at least one set before creating another.");
+    return;
+  }
+  if (ratingsStore.sets.length >= MAX_RATING_SETS) {
+    showRatingsWarning(`You can save up to ${MAX_RATING_SETS} player sets.`);
+    updateRatingsCreateSetButton();
+    return;
+  }
+  const id = newRatingsSetId();
+  const name = ratingSetNameForIndex(ratingsStore.sets.length);
+  ratingsStore.sets.push({ id, name, players: [] });
+  ratingsDirty = true;
+  showRatingsDetail(id);
+}
+
+let pendingDeleteSetId = null;
+
+function requestDeleteRatingsSet(setId) {
+  if (!ratingsStore) return;
+  const target = ratingsStore.sets.find((set) => set.id === setId);
+  if (!target) return;
+  pendingDeleteSetId = setId;
+  if (ratingsDeleteConfirmText) {
+    ratingsDeleteConfirmText.textContent = `Delete "${target.name || DEFAULT_SET_NAME}"? This cannot be undone.`;
+  }
+  if (ratingsDeleteConfirm) ratingsDeleteConfirm.hidden = false;
+}
+
+function cancelDeleteRatingsSet() {
+  pendingDeleteSetId = null;
+  if (ratingsDeleteConfirm) ratingsDeleteConfirm.hidden = true;
+}
+
+async function confirmDeleteRatingsSet() {
+  if (!ratingsStore || !pendingDeleteSetId) {
+    cancelDeleteRatingsSet();
+    return;
+  }
+  const userId = window.AshlyAuth && window.AshlyAuth.currentUserId();
+  if (!userId) {
+    window.AshlyAuth.openLogin();
+    return;
+  }
+
+  const deleteId = pendingDeleteSetId;
+  ratingsStore.sets = ratingsStore.sets.filter((set) => set.id !== deleteId);
+  if (!ratingsStore.sets.length) {
+    ratingsStore = createEmptyRatingsStore();
+  } else if (!ratingsStore.sets.some((set) => set.id === ratingsStore.activeSetId)) {
+    ratingsStore.activeSetId = ratingsStore.sets[0].id;
+  }
+
+  try {
+    ratingsStore = await writeRatingsStore(userId, ratingsStore);
+    ratingsHasExistingSet = ratingsStore.sets.some(setHasNamedPlayers);
+    ratingsDirty = false;
+    cancelDeleteRatingsSet();
+    showRatingsOverview();
+    refreshSavedPickerVisibility();
+  } catch (error) {
+    cancelDeleteRatingsSet();
+    showRatingsWarning(error.message || "Could not delete set.");
+  }
+}
+
+function beginEditRatingsSetName() {
+  if (!ratingsSetNameInput) return;
+  editingSetName = true;
+  ratingsSetNameInput.readOnly = false;
+  ratingsSetNameInput.classList.add("is-editing");
+  ratingsSetNameInput.focus();
+  ratingsSetNameInput.select();
+}
+
+function commitRatingsSetName() {
+  if (!ratingsSetNameInput) return;
+  const active = getActiveRatingsSet();
+  const name = ratingsSetNameInput.value.trim() || DEFAULT_SET_NAME;
+  ratingsSetNameInput.value = name;
+  ratingsSetNameInput.readOnly = true;
+  ratingsSetNameInput.classList.remove("is-editing");
+  editingSetName = false;
+  if (active && active.name !== name) {
+    active.name = name;
+    markRatingsDirty();
+  }
+}
+
 async function saveRatingsFromEditor() {
   const userId = window.AshlyAuth && window.AshlyAuth.currentUserId();
   if (!userId) {
     window.AshlyAuth.openLogin();
     return;
   }
-  const squad = ratingsPlayers.map((player, index) => ({
-    name: player.name.trim() || `Player ${index + 1}`,
-    rating: player.rating,
-    pos: player.pos,
-  }));
-  const previousLabel = ratingsSaveButton.textContent;
+  if (!ratingsStore) ratingsStore = createEmptyRatingsStore();
+  syncActiveSetFromEditor();
+  const previousLabel = ratingsSaveLabel ? ratingsSaveLabel.textContent : "Save Rating";
   ratingsSaveButton.disabled = true;
-  ratingsSaveButton.textContent = "Saving…";
+  if (ratingsSaveLabel) ratingsSaveLabel.textContent = "Saving…";
   showRatingsWarning("");
   try {
-    await writeSavedRatings(userId, squad);
+    ratingsStore = await writeRatingsStore(userId, ratingsStore);
     ratingsDirty = false;
-    forceCloseRatingsEditor();
+    ratingsHasExistingSet = ratingsStore.sets.some(setHasNamedPlayers);
+    showRatingsOverview();
+    showRatingsSaveToast();
+    refreshSavedPickerVisibility();
   } catch (error) {
     showRatingsWarning(error.message || "Could not save ratings.");
   } finally {
     ratingsSaveButton.disabled = false;
-    ratingsSaveButton.textContent = previousLabel;
+    if (ratingsSaveLabel) ratingsSaveLabel.textContent = previousLabel;
   }
 }
 
@@ -1504,6 +1921,7 @@ ratingsAddPlayer.addEventListener("click", () => {
   });
   markRatingsDirty();
   player.input.focus({ preventScroll: true });
+  scrollRatingsWindowToActions();
 });
 
 headerSaveRatings.addEventListener("click", () => {
@@ -1514,10 +1932,43 @@ ratingsSaveButton.addEventListener("click", () => {
   saveRatingsFromEditor();
 });
 ratingsClose.addEventListener("click", requestCloseRatingsEditor);
+if (ratingsSetClose) {
+  ratingsSetClose.addEventListener("click", minimizeRatingsSet);
+}
 ratingsConfirmCancel.addEventListener("click", () => {
   ratingsConfirm.hidden = true;
 });
 ratingsConfirmClose.addEventListener("click", forceCloseRatingsEditor);
+
+if (ratingsDeleteCancel) {
+  ratingsDeleteCancel.addEventListener("click", cancelDeleteRatingsSet);
+}
+if (ratingsDeleteConfirmBtn) {
+  ratingsDeleteConfirmBtn.addEventListener("click", confirmDeleteRatingsSet);
+}
+
+if (ratingsCreateSet) {
+  ratingsCreateSet.addEventListener("click", createNewRatingsSet);
+}
+
+if (ratingsSetNameEdit) {
+  ratingsSetNameEdit.addEventListener("click", () => {
+    if (editingSetName) commitRatingsSetName();
+    else beginEditRatingsSetName();
+  });
+}
+
+if (ratingsSetNameInput) {
+  ratingsSetNameInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitRatingsSetName();
+    }
+  });
+  ratingsSetNameInput.addEventListener("blur", () => {
+    if (editingSetName) commitRatingsSetName();
+  });
+}
 
 ratingsListEl.addEventListener("click", (event) => {
   if (event.target.closest(".pos, .delete, .rating button")) markRatingsDirty();
@@ -1527,13 +1978,460 @@ document.addEventListener("ats-open-save-ratings", openSaveRatingsEditor);
 
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
+  if (ratingsDeleteConfirm && !ratingsDeleteConfirm.hidden) {
+    cancelDeleteRatingsSet();
+    return;
+  }
   if (!ratingsConfirm.hidden) {
     ratingsConfirm.hidden = true;
     return;
   }
-  if (!ratingsOverlay.hidden) requestCloseRatingsEditor();
+  if (ratingsOverlay.hidden) return;
+  if (ratingsViewMode === "detail") {
+    minimizeRatingsSet();
+    return;
+  }
+  requestCloseRatingsEditor();
+});
+
+const savedPickerWrap = document.getElementById("savedPickerWrap");
+const savedPickerToggle = document.getElementById("savedPickerToggle");
+const savedPickerMenu = document.getElementById("savedPickerMenu");
+const selectSavedPlayersOption = document.getElementById("selectSavedPlayersOption");
+const savedPlayersPanel = document.getElementById("savedPlayersPanel");
+const savedPlayersList = document.getElementById("savedPlayersList");
+const savedPlayersClose = document.getElementById("savedPlayersClose");
+const savedPlayersContinue = document.getElementById("savedPlayersContinue");
+const savedPlayersSelectAll = document.getElementById("savedPlayersSelectAll");
+const savedSwipeDemo = document.getElementById("savedSwipeDemo");
+
+let cachedSavedSquad = [];
+const selectedSavedIndexes = new Set();
+let swipeDemoTimers = [];
+let swipeDemoActive = false;
+
+function closeSavedPickerMenu() {
+  if (!savedPickerMenu || !savedPickerToggle) return;
+  savedPickerMenu.hidden = true;
+  savedPickerToggle.setAttribute("aria-expanded", "false");
+}
+
+function stopSavedSwipeDemo() {
+  swipeDemoActive = false;
+  swipeDemoTimers.forEach((id) => clearTimeout(id));
+  swipeDemoTimers = [];
+  if (savedSwipeDemo) {
+    savedSwipeDemo.hidden = true;
+    savedSwipeDemo.style.opacity = "0";
+    savedSwipeDemo.style.transform = "";
+    savedSwipeDemo.style.left = "";
+    savedSwipeDemo.style.top = "";
+  }
+}
+
+function closeSavedPlayersPanel() {
+  stopSavedSwipeDemo();
+  if (!savedPlayersPanel) return;
+  savedPlayersPanel.hidden = true;
+  savedPlayersPanel.style.top = "";
+  savedPlayersPanel.style.bottom = "";
+  selectedSavedIndexes.clear();
+  updateSavedContinueButton();
+  updateSavedSelectAllLabel();
+}
+
+function positionSavedPlayersPanel() {
+  if (!savedPlayersPanel) return;
+  const tagline = document.getElementById("sportTagline");
+  const actions = document.querySelector(".card .actions");
+  if (!tagline) return;
+
+  const tagBox = tagline.getBoundingClientRect();
+  const top = Math.max(8, tagBox.bottom + 8);
+  let bottom = 24;
+  if (actions) {
+    const actionsBox = actions.getBoundingClientRect();
+    bottom = Math.max(24, window.innerHeight - actionsBox.top + 10);
+  }
+
+  savedPlayersPanel.style.top = `${top}px`;
+  savedPlayersPanel.style.bottom = `${bottom}px`;
+}
+
+function updateSavedContinueButton() {
+  if (!savedPlayersContinue) return;
+  savedPlayersContinue.hidden = selectedSavedIndexes.size === 0;
+}
+
+function updateSavedSelectAllLabel() {
+  if (!savedPlayersSelectAll) return;
+  const allSelected =
+    cachedSavedSquad.length > 0 && selectedSavedIndexes.size === cachedSavedSquad.length;
+  savedPlayersSelectAll.textContent = allSelected ? "Deselect all" : "Select all";
+}
+
+function startSavedSwipeDemo() {
+  stopSavedSwipeDemo();
+  if (!savedSwipeDemo || !savedPlayersList || !listEl) return;
+  const firstRow = savedPlayersList.querySelector(".saved-player-row");
+  if (!firstRow) return;
+
+  swipeDemoActive = true;
+  const from = firstRow.getBoundingClientRect();
+  const listBox = listEl.getBoundingClientRect();
+  const startX = from.left + from.width * 0.55;
+  const startY = from.top + from.height * 0.35;
+  const endX = listBox.left + Math.min(72, listBox.width * 0.35);
+  const endY = Math.min(listBox.bottom - 28, Math.max(listBox.top + 24, from.top));
+
+  const placeAtStart = () => {
+    if (!swipeDemoActive) return;
+    savedSwipeDemo.hidden = false;
+    savedSwipeDemo.style.transition = "none";
+    savedSwipeDemo.style.left = `${startX}px`;
+    savedSwipeDemo.style.top = `${startY}px`;
+    savedSwipeDemo.style.opacity = "1";
+    savedSwipeDemo.style.transform = "translate(0, 0) scale(1)";
+  };
+
+  const swipeOnce = (onDone) => {
+    placeAtStart();
+    const moveId = setTimeout(() => {
+      if (!swipeDemoActive) return;
+      savedSwipeDemo.style.transition =
+        "transform 1.6s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 1.6s ease";
+      savedSwipeDemo.style.transform = `translate(${endX - startX}px, ${endY - startY}px) scale(0.9)`;
+      savedSwipeDemo.style.opacity = "0.25";
+    }, 450);
+    swipeDemoTimers.push(moveId);
+    const doneId = setTimeout(() => {
+      if (!swipeDemoActive) return;
+      if (onDone) onDone();
+    }, 2300);
+    swipeDemoTimers.push(doneId);
+  };
+
+  swipeOnce(() => {
+    const pauseId = setTimeout(() => {
+      if (!swipeDemoActive) return;
+      swipeOnce(() => {
+        stopSavedSwipeDemo();
+      });
+    }, 350);
+    swipeDemoTimers.push(pauseId);
+  });
+}
+
+async function refreshSavedPickerVisibility() {
+  if (!savedPickerWrap) return;
+  const userId = window.AshlyAuth && window.AshlyAuth.currentUserId();
+  if (!userId) {
+    cachedSavedSquad = [];
+    savedPickerWrap.hidden = true;
+    closeSavedPickerMenu();
+    closeSavedPlayersPanel();
+    return;
+  }
+  try {
+    const saved = await readSavedRatings(userId);
+    cachedSavedSquad = (Array.isArray(saved) ? saved : []).filter(
+      (entry) => entry && String(entry.name || "").trim()
+    );
+    savedPickerWrap.hidden = cachedSavedSquad.length === 0;
+    if (savedPickerWrap.hidden) {
+      closeSavedPickerMenu();
+      closeSavedPlayersPanel();
+    } else if (savedPlayersPanel && !savedPlayersPanel.hidden) {
+      renderSavedPlayersPanel();
+    }
+  } catch (error) {
+    cachedSavedSquad = [];
+    savedPickerWrap.hidden = true;
+    closeSavedPickerMenu();
+    closeSavedPlayersPanel();
+  }
+}
+
+function applySavedEntryToPlayer(player, entry) {
+  player.name = (entry && entry.name) || "";
+  player.rating = entry && entry.rating ? entry.rating : DEFAULT_RATING;
+  player.pos = entry && entry.pos ? entry.pos : null;
+  player.input.value = player.name;
+  rebuildChips(player);
+  updateRating(player);
+  updateHeaderSaveButton();
+}
+
+function findEmptyMainPlayer() {
+  return players.find((player) => !String(player.name || "").trim());
+}
+
+function addSavedEntryToMain(entry) {
+  const empty = findEmptyMainPlayer();
+  const player = empty || createPlayer();
+  applySavedEntryToPlayer(player, entry);
+  renderLegend();
+  if (!empty && listEl.classList.contains("is-scrollable")) {
+    listEl.scrollTop = listEl.scrollHeight;
+  }
+  return player;
+}
+
+function removeSavedEntryFromPanel(entry) {
+  const index = cachedSavedSquad.indexOf(entry);
+  if (index === -1) return;
+  cachedSavedSquad.splice(index, 1);
+  if (!cachedSavedSquad.length) {
+    closeSavedPlayersPanel();
+    return;
+  }
+  renderSavedPlayersPanel();
+  positionSavedPlayersPanel();
+}
+
+function flySavedNameToMain(fromEl, entry, onDone) {
+  const from = fromEl.getBoundingClientRect();
+  const listBox = listEl.getBoundingClientRect();
+  const chip = document.createElement("div");
+  chip.className = "saved-fly-chip";
+  chip.textContent = entry.name || "Player";
+  chip.style.left = `${from.left}px`;
+  chip.style.top = `${from.top}px`;
+  chip.style.width = `${Math.max(from.width, 72)}px`;
+  document.body.appendChild(chip);
+
+  const targetX = listBox.left + 18;
+  const targetY = Math.min(listBox.bottom - 36, listBox.top + listBox.height * 0.72);
+
+  requestAnimationFrame(() => {
+    chip.style.transform = `translate(${targetX - from.left}px, ${targetY - from.top}px) scale(0.85)`;
+    chip.style.opacity = "0.15";
+  });
+
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    chip.remove();
+    if (onDone) onDone();
+  };
+  chip.addEventListener("transitionend", finish, { once: true });
+  setTimeout(finish, 650);
+}
+
+function renderSavedPlayersPanel() {
+  selectedSavedIndexes.clear();
+  updateSavedContinueButton();
+  updateSavedSelectAllLabel();
+  savedPlayersList.replaceChildren();
+  savedPlayersList.classList.toggle("is-scrollable", cachedSavedSquad.length > 20);
+
+  cachedSavedSquad.forEach((entry, index) => {
+    const row = document.createElement("div");
+    row.className = "saved-player-row";
+    row.dataset.index = String(index);
+    row.setAttribute("role", "button");
+    row.tabIndex = 0;
+
+    const name = document.createElement("span");
+    name.className = "saved-player-name";
+    name.textContent = entry.name || `Player ${index + 1}`;
+    row.appendChild(name);
+
+    if (entry.pos) {
+      const pos = document.createElement("span");
+      pos.className = "pos selected saved-player-pos";
+      pos.dataset.pos = entry.pos;
+      pos.textContent = entry.pos;
+      row.appendChild(pos);
+    }
+
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+    let swiped = false;
+
+    row.addEventListener("pointerdown", (event) => {
+      tracking = true;
+      swiped = false;
+      startX = event.clientX;
+      startY = event.clientY;
+      row.setPointerCapture(event.pointerId);
+      row.classList.add("is-swiping");
+    });
+
+    row.addEventListener("pointermove", (event) => {
+      if (!tracking) return;
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      if (Math.abs(dx) > Math.abs(dy) && dx < 0) {
+        row.style.transform = `translateX(${Math.max(dx, -120)}px)`;
+        if (dx < -56) swiped = true;
+      }
+    });
+
+    const endSwipe = (event) => {
+      if (!tracking) return;
+      tracking = false;
+      row.classList.remove("is-swiping");
+      row.style.transform = "";
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      if (swiped || (dx < -72 && Math.abs(dx) > Math.abs(dy) * 1.2)) {
+        stopSavedSwipeDemo();
+        if (row.dataset.adding === "1") return;
+        row.dataset.adding = "1";
+        flySavedNameToMain(row, entry, () => {
+          addSavedEntryToMain(entry);
+          removeSavedEntryFromPanel(entry);
+        });
+        return;
+      }
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+        stopSavedSwipeDemo();
+        if (selectedSavedIndexes.has(index)) selectedSavedIndexes.delete(index);
+        else selectedSavedIndexes.add(index);
+        row.classList.toggle("is-selected", selectedSavedIndexes.has(index));
+        updateSavedContinueButton();
+        updateSavedSelectAllLabel();
+      }
+    };
+
+    row.addEventListener("pointerup", endSwipe);
+    row.addEventListener("pointercancel", () => {
+      tracking = false;
+      row.classList.remove("is-swiping");
+      row.style.transform = "";
+    });
+
+    savedPlayersList.appendChild(row);
+  });
+}
+
+async function openSavedPlayersPanel() {
+  closeSavedPickerMenu();
+  const userId = window.AshlyAuth && window.AshlyAuth.currentUserId();
+  if (!userId) {
+    window.AshlyAuth.openLogin();
+    return;
+  }
+  try {
+    const saved = await readSavedRatings(userId);
+    cachedSavedSquad = (Array.isArray(saved) ? saved : []).filter(
+      (entry) => entry && String(entry.name || "").trim()
+    );
+  } catch (error) {
+    showWarning(error.message || "Could not load saved players.");
+    return;
+  }
+  if (!cachedSavedSquad.length) {
+    savedPickerWrap.hidden = true;
+    showWarning("No saved players yet.");
+    return;
+  }
+  renderSavedPlayersPanel();
+  positionSavedPlayersPanel();
+  savedPlayersPanel.hidden = false;
+  requestAnimationFrame(() => startSavedSwipeDemo());
+}
+
+window.addEventListener("resize", () => {
+  if (savedPlayersPanel && !savedPlayersPanel.hidden) positionSavedPlayersPanel();
+});
+
+if (savedPickerToggle) {
+  savedPickerToggle.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (savedPickerMenu.hidden) {
+      savedPickerMenu.hidden = false;
+      savedPickerToggle.setAttribute("aria-expanded", "true");
+    } else {
+      closeSavedPickerMenu();
+    }
+  });
+}
+
+if (selectSavedPlayersOption) {
+  selectSavedPlayersOption.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openSavedPlayersPanel();
+  });
+}
+
+if (savedPlayersClose) {
+  savedPlayersClose.addEventListener("click", () => {
+    stopSavedSwipeDemo();
+    closeSavedPlayersPanel();
+  });
+}
+
+if (savedPlayersSelectAll) {
+  savedPlayersSelectAll.addEventListener("click", (event) => {
+    event.stopPropagation();
+    stopSavedSwipeDemo();
+    const allSelected =
+      cachedSavedSquad.length > 0 && selectedSavedIndexes.size === cachedSavedSquad.length;
+    selectedSavedIndexes.clear();
+    if (!allSelected) {
+      cachedSavedSquad.forEach((_, index) => selectedSavedIndexes.add(index));
+    }
+    savedPlayersList.querySelectorAll(".saved-player-row").forEach((row, index) => {
+      row.classList.toggle("is-selected", selectedSavedIndexes.has(index));
+    });
+    updateSavedContinueButton();
+    updateSavedSelectAllLabel();
+  });
+}
+
+if (savedPlayersContinue) {
+  savedPlayersContinue.addEventListener("click", () => {
+    stopSavedSwipeDemo();
+    const pickedIndexes = [...selectedSavedIndexes].sort((a, b) => a - b);
+    const picked = pickedIndexes.map((index) => cachedSavedSquad[index]).filter(Boolean);
+    if (!picked.length) return;
+    picked.forEach((entry) => addSavedEntryToMain(entry));
+    for (let i = pickedIndexes.length - 1; i >= 0; i -= 1) {
+      cachedSavedSquad.splice(pickedIndexes[i], 1);
+    }
+    closeSavedPlayersPanel();
+  });
+}
+
+if (savedPlayersPanel) {
+  savedPlayersPanel.addEventListener(
+    "pointerdown",
+    () => {
+      if (swipeDemoActive) stopSavedSwipeDemo();
+    },
+    true
+  );
+}
+
+document.addEventListener(
+  "pointerdown",
+  (event) => {
+    if (!swipeDemoActive) return;
+    if (event.target.closest("#savedSwipeDemo")) return;
+    stopSavedSwipeDemo();
+  },
+  true
+);
+
+document.addEventListener(
+  "keydown",
+  () => {
+    if (swipeDemoActive) stopSavedSwipeDemo();
+  },
+  true
+);
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && savedPlayersPanel && !savedPlayersPanel.hidden) {
+    closeSavedPlayersPanel();
+  }
 });
 
 createPlayer();
 createPlayer();
 updateHeaderSaveButton();
+refreshSavedPickerVisibility();
