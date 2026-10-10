@@ -89,6 +89,9 @@ function closeAccountMenu() {
 }
 
 function openAccountMenu() {
+  if (window.AshlyUi && typeof window.AshlyUi.closeConnect === "function") {
+    window.AshlyUi.closeConnect();
+  }
   accountMenu.hidden = false;
   accountButton.setAttribute("aria-expanded", "true");
 }
@@ -278,6 +281,7 @@ accountSaveRatingsOption.addEventListener("click", (event) => {
 
 accountLogoutOption.addEventListener("click", async (event) => {
   event.stopPropagation();
+  const username = cachedUsername;
   try {
     await logoutUser();
   } catch (error) {
@@ -286,6 +290,11 @@ accountLogoutOption.addEventListener("click", async (event) => {
     updateAccountUi();
   }
   closeAccountMenu();
+  document.dispatchEvent(
+    new CustomEvent("ats-auth-logout", {
+      detail: { username: username || "" },
+    })
+  );
 });
 
 authClose.addEventListener("click", closeAuthModal);
@@ -346,12 +355,19 @@ authForm.addEventListener("submit", async (event) => {
   }
 });
 
-document.addEventListener("click", (event) => {
-  if (!event.target.closest(".account-wrap")) closeAccountMenu();
-});
+document.addEventListener(
+  "click",
+  (event) => {
+    if (!event.target.closest(".account-wrap")) closeAccountMenu();
+  },
+  true
+);
 
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !authOverlay.hidden) closeAuthModal();
+  if (event.key === "Escape") {
+    closeAccountMenu();
+    if (!authOverlay.hidden) closeAuthModal();
+  }
 });
 
 initAuthSession();
@@ -361,4 +377,5 @@ window.AshlyAuth = {
   currentUserId: () => cachedUserId,
   openLogin: () => openAuthModal("login"),
   openRegister: () => openAuthModal("register"),
+  closeAccountMenu,
 };

@@ -116,7 +116,7 @@ body::before {
   display: grid;
   grid-template-columns: 64px 1fr auto;
   gap: 12px 14px;
-  align-items: center;
+  align-items: start;
   margin-bottom: 18px;
 }
 
@@ -182,16 +182,37 @@ body::before {
 
 .titles {
   min-width: 0;
+  overflow: hidden;
 }
 
 .page-title {
   margin: 0;
-  font-size: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   text-align: left;
   color: #06323f;
   line-height: 1.15;
+  max-width: 100%;
+}
+
+.page-title-brand {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  line-height: 1.2;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.page-title-product {
+  font-size: 20px;
+  white-space: nowrap;
 }
 
 .tagline {
@@ -200,6 +221,13 @@ body::before {
   font-weight: 600;
   color: #0a4a5b;
   opacity: 0.88;
+  white-space: nowrap;
+}
+
+@media (max-width: 380px) {
+  .tagline {
+    white-space: normal;
+  }
 }
 
 .header-actions {
@@ -207,6 +235,7 @@ body::before {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 36px;
 }
 
 .account-wrap,
@@ -317,15 +346,13 @@ body::before {
   position: fixed;
   inset: 0;
   z-index: 65;
-  display: block;
-  padding: 18px 14px 56px;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 14px 20px;
   background: rgba(3, 12, 16, 0.78);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  overflow: hidden;
 }
 
 .ratings-overlay[hidden] {
@@ -342,6 +369,9 @@ body.ratings-open {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .ratings-section-head {
@@ -374,6 +404,10 @@ body.ratings-open {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ratings-overview[hidden] {
@@ -409,6 +443,41 @@ body.ratings-open {
 
 .ratings-create-set:hover {
   background: rgba(57, 255, 20, 0.24);
+}
+
+.ratings-empty-message {
+  margin: 8px 0 0;
+  padding: 14px 12px;
+  border-radius: 12px;
+  border: 1px dashed rgba(232, 246, 248, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(232, 246, 248, 0.78);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ratings-empty-message[hidden] {
+  display: none;
+}
+
+.ratings-max-sets-card {
+  border: 1px solid rgba(239, 68, 68, 0.55);
+  background: #fff5f5;
+}
+
+.ratings-max-sets-card h3 {
+  color: #b91c1c;
+}
+
+.ratings-max-sets-card p {
+  color: #9f1239;
+}
+
+.ratings-max-sets-ok {
+  background: #e11d48 !important;
+  border-color: #be123c !important;
+  color: #ffffff !important;
 }
 
 .ratings-set-grid {
@@ -519,19 +588,23 @@ body.ratings-open {
 .card.ratings-card {
   position: relative;
   width: 100%;
-  max-height: none;
-  height: auto;
-  overflow: visible;
   margin: 0;
   display: flex;
   flex-direction: column;
   padding-top: 14px;
   padding-bottom: 12px;
-  flex: 0 0 auto;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
 }
 
 .card.ratings-card[hidden] {
   display: none;
+}
+
+.card.ratings-card .list-head {
+  flex-shrink: 0;
 }
 
 .card.ratings-card .actions {
@@ -574,6 +647,7 @@ body.ratings-open {
   margin: 0 0 12px;
   padding: 0 2px;
   position: relative;
+  flex-shrink: 0;
 }
 
 .ratings-set-name-input {
@@ -677,9 +751,13 @@ body.ratings-open {
 }
 
 .card.ratings-card .player-list {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: none;
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .ratings-close {
@@ -1118,6 +1196,33 @@ body.ratings-open {
     inset 0 -14px 28px rgba(190, 198, 204, 0.05),
     inset 0 -1px 0 rgba(255, 255, 255, 0.3),
     0 18px 44px rgba(0, 0, 0, 0.42);
+}
+
+/* Main splitter card: keep title/save and action buttons visible while the list grows. */
+.page > .card {
+  display: flex;
+  flex-direction: column;
+  max-height: min(78vh, 820px);
+}
+
+.page > .card .list-head {
+  flex-shrink: 0;
+}
+
+.page > .card .player-list,
+.page > .card .player-list.is-scrollable {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.page > .card .warning,
+.page > .card .actions {
+  flex-shrink: 0;
 }
 
 /* Two diagonal sunlight streaks, over a sheen washing down the wet surface */

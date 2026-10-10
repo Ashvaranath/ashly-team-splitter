@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ashly Team Splitter</title>
+  <title>Elohid Ashly Squad Splitter</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body data-sport="football">
@@ -15,7 +15,10 @@
         <img src="icons/profile.jpg" alt="Ashly" />
       </button>
       <div class="titles">
-        <h1 class="page-title">Ashly Team Splitter</h1>
+        <h1 class="page-title">
+          <span class="page-title-brand">Elohid Ashly</span>
+          <span class="page-title-product">Squad Splitter</span>
+        </h1>
         <p id="sportTagline" class="tagline">Fair squads. Match-ready in seconds.</p>
       </div>
       <div class="header-actions">
@@ -616,6 +619,7 @@
         <div class="ratings-sets-bar">
           <button type="button" id="ratingsCreateSet" class="ratings-create-set" hidden>Create new set</button>
         </div>
+        <p id="ratingsEmptyMessage" class="ratings-empty-message" hidden>No ratings has been saved</p>
         <div id="ratingsSetGrid" class="ratings-set-grid"></div>
         <p id="ratingsSaveToast" class="ratings-save-toast" role="status" aria-live="polite" hidden>Rating saved!</p>
       </div>
@@ -669,6 +673,19 @@
       <div class="ratings-confirm-actions">
         <button type="button" id="ratingsDeleteCancel" class="btn btn-ghost">Cancel</button>
         <button type="button" id="ratingsDeleteConfirmBtn" class="btn btn-primary ratings-delete-confirm-btn">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ratingsMaxSetsInfo" class="ratings-confirm" role="dialog" aria-modal="true" aria-labelledby="ratingsMaxSetsTitle" hidden>
+    <div class="ratings-confirm-card ratings-max-sets-card">
+      <h3 id="ratingsMaxSetsTitle">Maximum sets reached</h3>
+      <p>
+        Maximum of 4 sets only can be saved. Please modify or delete your saved set from
+        <strong>Player Ratings</strong> screen.
+      </p>
+      <div class="ratings-confirm-actions">
+        <button type="button" id="ratingsMaxSetsOk" class="btn btn-primary ratings-max-sets-ok">OK</button>
       </div>
     </div>
   </div>
