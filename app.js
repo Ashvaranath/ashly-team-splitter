@@ -113,13 +113,15 @@ function showSaveSuccess(message) {
   }, 5000);
 }
 
-function showAuthBanner(message) {
+function showAuthBanner(message, variant = "success") {
   if (!authBannerEl) return;
   authBannerEl.textContent = message;
+  authBannerEl.classList.toggle("is-logout", variant === "logout");
   authBannerEl.hidden = false;
   clearTimeout(authBannerTimer);
   authBannerTimer = setTimeout(() => {
     authBannerEl.hidden = true;
+    authBannerEl.classList.remove("is-logout");
   }, 5000);
 }
 
@@ -167,11 +169,11 @@ function closeOtherPosMenus(exceptPlayer) {
 }
 
 function updateRating(player) {
-  player.pips.forEach((pip, index) => {
-    pip.classList.toggle("off", index >= player.rating);
-  });
-  player.valueEl.setAttribute("aria-valuenow", String(player.rating));
-  player.valueEl.setAttribute("aria-label", `Rating ${player.rating} of ${MAX_RATING}`);
+  if (player.valueEl) {
+    player.valueEl.textContent = String(player.rating);
+    player.valueEl.setAttribute("aria-valuenow", String(player.rating));
+    player.valueEl.setAttribute("aria-label", `Rating ${player.rating} of ${MAX_RATING}`);
+  }
   player.minusEl.disabled = player.rating <= MIN_RATING;
   player.plusEl.disabled = player.rating >= MAX_RATING;
 }
@@ -340,15 +342,11 @@ function createPlayer(options = {}) {
   });
 
   const value = document.createElement("span");
-  value.className = "pips";
+  value.className = "rating-value";
   value.setAttribute("role", "meter");
   value.setAttribute("aria-valuemin", String(MIN_RATING));
   value.setAttribute("aria-valuemax", String(MAX_RATING));
-  const pips = Array.from({ length: MAX_RATING }, () => {
-    const pip = document.createElement("span");
-    value.appendChild(pip);
-    return pip;
-  });
+  value.textContent = String(player.rating);
 
   const plus = document.createElement("button");
   plus.type = "button";
@@ -391,7 +389,7 @@ function createPlayer(options = {}) {
     posToggle,
     positionsEl,
     chips: [],
-    pips,
+    pips: [],
     valueEl: value,
     minusEl: minus,
     plusEl: plus,
@@ -1461,7 +1459,8 @@ document.addEventListener("ats-auth-success", (event) => {
 document.addEventListener("ats-auth-logout", (event) => {
   const name = (event.detail && event.detail.username) || "";
   showAuthBanner(
-    name ? `Goodbye, ${name}!\nYou are successfully logged out.` : "You are successfully logged out."
+    name ? `Goodbye, ${name}!\nYou are successfully logged out.` : "You are successfully logged out.",
+    "logout"
   );
 });
 

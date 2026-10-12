@@ -47,6 +47,8 @@ body[data-sport="badminton"] {
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 * {
@@ -56,6 +58,8 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  max-width: 100%;
+  overflow-x: hidden;
   font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--text);
   background: linear-gradient(160deg, var(--page-top) 0%, var(--page-mid) 52%, var(--page-bottom) 100%);
@@ -105,12 +109,14 @@ body::before {
 .page {
   position: relative;
   z-index: 1;
-  max-width: 760px;
+  width: 100%;
+  max-width: min(760px, 100%);
   margin: 0 auto;
-  padding: 40px 20px 72px;
+  padding: 24px 12px 56px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 .page-footer {
@@ -148,15 +154,18 @@ body::before {
   position: relative;
   z-index: 30;
   display: grid;
-  grid-template-columns: 64px 1fr auto;
-  gap: 12px 14px;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 8px 10px;
   align-items: start;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .avatar {
-  width: 64px;
-  height: 64px;
+  width: 52px;
+  height: 52px;
   padding: 0;
   border-radius: 50%;
   border: 2px solid #ffffff;
@@ -216,7 +225,8 @@ body::before {
 
 .titles {
   min-width: 0;
-  overflow: visible;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .page-title {
@@ -231,27 +241,34 @@ body::before {
   color: #06323f;
   line-height: 1.15;
   max-width: 100%;
+  min-width: 0;
 }
 
 .page-title-brand {
-  font-size: 15px;
+  font-size: clamp(12px, 3.6vw, 15px);
   font-weight: 700;
   letter-spacing: 0.2px;
   white-space: nowrap;
   line-height: 1.2;
-  min-height: 36px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .page-title-product {
-  font-size: 20px;
+  font-size: clamp(15px, 4.6vw, 20px);
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tagline {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: clamp(10px, 2.8vw, 12px);
   font-weight: 600;
   color: #0a4a5b;
   opacity: 0.88;
@@ -264,8 +281,9 @@ body::before {
   justify-self: end;
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 36px;
+  gap: 6px;
+  min-height: 32px;
+  flex-shrink: 0;
 }
 
 .account-wrap,
@@ -1041,13 +1059,14 @@ body.ratings-open {
   background: rgba(255, 255, 255, 0.88);
   color: #0f2730;
   border-radius: 999px;
-  padding: 5px 10px;
+  padding: 4px 8px;
   font: inherit;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(6, 50, 63, 0.16);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .connect-button[aria-expanded="true"] {
@@ -1216,8 +1235,10 @@ body.ratings-open {
   --chip-text: #7d9096;
   position: relative;
   overflow: hidden;
-  border-radius: 26px;
-  padding: 22px;
+  border-radius: 22px;
+  padding: 16px;
+  width: 100%;
+  max-width: 100%;
   color: var(--text);
   background: linear-gradient(180deg, rgba(3, 4, 5, 0.92) 0%, rgba(13, 15, 17, 0.89) 55%, rgba(26, 29, 32, 0.86) 100%);
   border: 1px solid rgba(255, 255, 255, 0.42);
@@ -1234,7 +1255,29 @@ body.ratings-open {
 .page > .card {
   display: flex;
   flex-direction: column;
+  width: max-content;
+  max-width: min(100%, 460px);
   max-height: min(78vh, 820px);
+  align-self: center;
+}
+
+.page > .card .list-head,
+.page > .card .player-row {
+  width: max-content;
+  max-width: 100%;
+  grid-template-columns: 260px 100px 28px;
+  gap: 6px;
+}
+
+.page > .card .actions {
+  width: 100%;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.page > .card .btn-primary {
+  margin-left: auto;
 }
 
 .page > .card .list-head {
@@ -1250,7 +1293,7 @@ body.ratings-open {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  padding-top: 48px;
+  padding-top: 8px;
 }
 
 .page > .card .warning,
@@ -1323,17 +1366,18 @@ body.ratings-open {
 }
 
 .card .rating {
-  background: #e8ecef;
-  border-color: #c5ccd1;
+  background: transparent;
+  border-color: transparent;
 }
 
 .card .rating button {
-  border: none;
-  background: #0b1214;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
-.card .pips span.off {
-  background: #b8c0c6;
+.card .rating-value {
+  color: #ffffff;
 }
 
 .card .delete {
@@ -1365,15 +1409,19 @@ body.ratings-open {
 
 .list-head {
   display: grid;
-  grid-template-columns: 1fr 150px 44px;
-  gap: 12px;
-  padding: 0 4px 10px;
+  grid-template-columns: minmax(0, 1fr) 108px 32px;
+  gap: 8px;
+  justify-content: start;
+  padding: 0 2px 8px;
   border-bottom: 1px solid var(--stroke);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--accent);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .col-rating {
@@ -1433,8 +1481,7 @@ body.ratings-open {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  /* Extra top space so first-row position chips can sit above the name field. */
-  padding-top: 48px;
+  padding-top: 8px;
   overflow: visible;
 }
 
@@ -1450,9 +1497,13 @@ body.ratings-open {
 .player-row {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 150px 44px;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 108px 32px;
+  gap: 8px;
   align-items: center;
+  justify-content: start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .player-row.pos-open {
@@ -1462,6 +1513,8 @@ body.ratings-open {
 .name-cell {
   position: relative;
   z-index: 1;
+  min-width: 0;
+  width: 100%;
 }
 
 .player-row.pos-open .name-cell {
@@ -1470,6 +1523,7 @@ body.ratings-open {
 
 .name-input {
   width: 100%;
+  max-width: 100%;
   padding: 10px 42px 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--input-stroke);
@@ -1561,22 +1615,20 @@ body.ratings-open {
 
 .positions {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: calc(100% + 4px);
-  top: auto;
+  inset: 1px;
+  right: 40px;
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-start;
   gap: 6px;
-  padding: 6px 8px;
+  padding: 0 8px;
   border-radius: 10px;
-  background: #f5f5dc;
-  border: 1px solid rgba(180, 160, 110, 0.45);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14);
-  z-index: 14;
+  background: rgba(245, 245, 220, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  z-index: 4;
   box-sizing: border-box;
 }
 
@@ -1662,21 +1714,21 @@ body.ratings-open {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  background: var(--input);
-  border: 1px solid var(--input-stroke);
-  border-radius: 10px;
-  padding: 6px 8px;
+  gap: 6px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
 }
 
 .rating button {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 1px solid var(--input-stroke);
-  background: #ffffff;
-  color: var(--accent);
-  font-size: 14px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
@@ -1687,31 +1739,26 @@ body.ratings-open {
   cursor: not-allowed;
 }
 
-.pips {
-  display: flex;
-  gap: 3px;
-  align-items: center;
-}
-
-.pips span {
-  width: 6px;
-  height: 16px;
-  border-radius: 2px;
-  background: var(--accent);
-}
-
-.pips span.off {
-  background: #d7e3e7;
+.rating-value {
+  min-width: 1.2em;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+  color: #ffffff;
+  background: transparent;
+  border: 0;
+  padding: 0;
 }
 
 .delete {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
   border: 1px solid var(--chip-stroke);
   background: var(--chip);
   color: #dc2626;
-  font-size: 16px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -1730,6 +1777,12 @@ body.ratings-open {
   font-weight: 700;
   white-space: pre-line;
   box-shadow: 0 6px 16px rgba(6, 50, 63, 0.08);
+}
+
+.auth-banner.is-logout {
+  background: rgba(249, 115, 22, 0.18);
+  border: 1px solid rgba(251, 146, 60, 0.7);
+  color: #9a3412;
 }
 
 .auth-banner[hidden] {
@@ -3360,14 +3413,34 @@ body.ratings-open {
     transform: translateY(-12px) scale(0.04);
   }
 
-  .list-head,
-  .player-row {
-    grid-template-columns: 1fr 132px 40px;
-    gap: 8px;
+  .page > .card {
+    max-width: min(100%, 420px);
   }
 
-  .pips span {
-    width: 5px;
+  .page > .card .list-head,
+  .page > .card .player-row {
+    grid-template-columns: minmax(160px, 220px) 96px 26px;
+    gap: 6px;
+  }
+
+  .list-head,
+  .player-row {
+    grid-template-columns: minmax(0, 1fr) 100px 30px;
+    gap: 6px;
+  }
+
+  .page {
+    padding: 16px 10px 48px;
+  }
+
+  .card {
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .name-input {
+    font-size: 16px;
+    padding: 10px 40px 10px 12px;
   }
 
   .match-scene {
