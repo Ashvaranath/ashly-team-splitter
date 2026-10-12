@@ -121,8 +121,8 @@ body::before {
 
 .page-footer {
   margin-top: auto;
-  padding-top: 40px;
-  padding-bottom: 8px;
+  padding-top: 24px;
+  padding-bottom: 28px;
   display: flex;
   justify-content: flex-start;
 }
@@ -1256,7 +1256,7 @@ body.ratings-open {
   display: flex;
   flex-direction: column;
   width: max-content;
-  max-width: min(100%, 460px);
+  max-width: min(100%, 560px);
   max-height: min(78vh, 820px);
   align-self: center;
 }
@@ -1265,8 +1265,8 @@ body.ratings-open {
 .page > .card .player-row {
   width: max-content;
   max-width: 100%;
-  grid-template-columns: 260px 100px 28px;
-  gap: 6px;
+  grid-template-columns: 340px 110px 32px;
+  gap: 8px;
 }
 
 .page > .card .actions {
@@ -1625,9 +1625,9 @@ body.ratings-open {
   gap: 6px;
   padding: 0 8px;
   border-radius: 10px;
-  background: rgba(245, 245, 220, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  border: 1px solid rgba(200, 200, 200, 0.55);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14);
   z-index: 4;
   box-sizing: border-box;
 }
@@ -3414,13 +3414,13 @@ body.ratings-open {
   }
 
   .page > .card {
-    max-width: min(100%, 420px);
+    max-width: min(100%, 520px);
   }
 
   .page > .card .list-head,
   .page > .card .player-row {
-    grid-template-columns: minmax(160px, 220px) 96px 26px;
-    gap: 6px;
+    grid-template-columns: minmax(200px, 300px) 100px 28px;
+    gap: 8px;
   }
 
   .list-head,
