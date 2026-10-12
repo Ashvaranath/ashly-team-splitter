@@ -2115,12 +2115,53 @@ function stopSavedSwipeDemo() {
   }
 }
 
+const SAVED_PLAYERS_VISIBLE_MAX = 12;
+let savedPlayersListLockedHeight = null;
+
+function clearSavedPlayersListSize() {
+  savedPlayersListLockedHeight = null;
+  if (!savedPlayersList) return;
+  savedPlayersList.style.height = "";
+  savedPlayersList.style.maxHeight = "";
+  savedPlayersList.classList.remove("is-scrollable");
+}
+
+function applySavedPlayersListSize(lockHeight) {
+  if (!savedPlayersList) return;
+  const rows = savedPlayersList.querySelectorAll(".saved-player-row");
+  const count = rows.length;
+  if (!count) {
+    savedPlayersList.style.height = "0px";
+    savedPlayersList.style.maxHeight = "0px";
+    savedPlayersList.classList.remove("is-scrollable");
+    return;
+  }
+
+  const styles = window.getComputedStyle(savedPlayersList);
+  const gap = Number.parseFloat(styles.rowGap || styles.gap) || 4;
+  const rowHeight = rows[0].getBoundingClientRect().height;
+  const visible = Math.min(count, SAVED_PLAYERS_VISIBLE_MAX);
+  const contentHeight = visible * rowHeight + Math.max(0, visible - 1) * gap;
+
+  if (lockHeight || savedPlayersListLockedHeight == null) {
+    savedPlayersListLockedHeight = contentHeight;
+  }
+
+  savedPlayersList.style.height = `${savedPlayersListLockedHeight}px`;
+  savedPlayersList.style.maxHeight = `${savedPlayersListLockedHeight}px`;
+  savedPlayersList.classList.toggle(
+    "is-scrollable",
+    count > SAVED_PLAYERS_VISIBLE_MAX || savedPlayersList.scrollHeight > savedPlayersListLockedHeight + 1
+  );
+}
+
 function closeSavedPlayersPanel() {
   stopSavedSwipeDemo();
   if (!savedPlayersPanel) return;
   savedPlayersPanel.hidden = true;
   savedPlayersPanel.style.top = "";
   savedPlayersPanel.style.bottom = "";
+  clearSavedPlayersListSize();
   selectedSavedIndexes.clear();
   updateSavedContinueButton();
   updateSavedSelectAllLabel();
@@ -2129,19 +2170,14 @@ function closeSavedPlayersPanel() {
 function positionSavedPlayersPanel() {
   if (!savedPlayersPanel) return;
   const tagline = document.getElementById("sportTagline");
-  const actions = document.querySelector(".card .actions");
   if (!tagline) return;
 
   const tagBox = tagline.getBoundingClientRect();
   const top = Math.max(8, tagBox.bottom + 8);
-  let bottom = 24;
-  if (actions) {
-    const actionsBox = actions.getBoundingClientRect();
-    bottom = Math.max(24, window.innerHeight - actionsBox.top + 10);
-  }
-
+  // Height is content-driven (max 12 rows). Do not pin bottom — that stretched
+  // the popup whenever the main card grew after dragging players in.
   savedPlayersPanel.style.top = `${top}px`;
-  savedPlayersPanel.style.bottom = `${bottom}px`;
+  savedPlayersPanel.style.bottom = "";
 }
 
 function updateSavedContinueButton() {
@@ -2310,7 +2346,6 @@ function renderSavedPlayersPanel() {
   updateSavedContinueButton();
   updateSavedSelectAllLabel();
   savedPlayersList.replaceChildren();
-  savedPlayersList.classList.toggle("is-scrollable", cachedSavedSquad.length > 20);
 
   cachedSavedSquad.forEach((entry, index) => {
     const row = document.createElement("div");
@@ -2392,6 +2427,11 @@ function renderSavedPlayersPanel() {
 
     savedPlayersList.appendChild(row);
   });
+
+  // Keep the opened size stable while dragging players out; only lock on first layout.
+  if (savedPlayersPanel && !savedPlayersPanel.hidden) {
+    applySavedPlayersListSize(savedPlayersListLockedHeight == null);
+  }
 }
 
 async function openSavedPlayersPanel() {
@@ -2415,10 +2455,14 @@ async function openSavedPlayersPanel() {
     showWarning("No saved players yet.");
     return;
   }
+  clearSavedPlayersListSize();
   renderSavedPlayersPanel();
   positionSavedPlayersPanel();
   savedPlayersPanel.hidden = false;
-  requestAnimationFrame(() => startSavedSwipeDemo());
+  requestAnimationFrame(() => {
+    applySavedPlayersListSize(true);
+    startSavedSwipeDemo();
+  });
 }
 
 window.addEventListener("resize", () => {
@@ -2514,6 +2558,35 @@ document.addEventListener(
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && savedPlayersPanel && !savedPlayersPanel.hidden) {
     closeSavedPlayersPanel();
+  }
+});
+
+const termsLink = document.getElementById("termsLink");
+const termsInfo = document.getElementById("termsInfo");
+const termsInfoOk = document.getElementById("termsInfoOk");
+
+function openTermsInfo() {
+  if (termsInfo) termsInfo.hidden = false;
+}
+
+function closeTermsInfo() {
+  if (termsInfo) termsInfo.hidden = true;
+}
+
+if (termsLink) {
+  termsLink.addEventListener("click", openTermsInfo);
+}
+if (termsInfoOk) {
+  termsInfoOk.addEventListener("click", closeTermsInfo);
+}
+if (termsInfo) {
+  termsInfo.addEventListener("click", (event) => {
+    if (event.target === termsInfo) closeTermsInfo();
+  });
+}
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && termsInfo && !termsInfo.hidden) {
+    closeTermsInfo();
   }
 });
 

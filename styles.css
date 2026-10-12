@@ -107,7 +107,41 @@ body::before {
   z-index: 1;
   max-width: 760px;
   margin: 0 auto;
-  padding: 40px 20px 64px;
+  padding: 40px 20px 72px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-footer {
+  margin-top: auto;
+  padding-top: 40px;
+  padding-bottom: 8px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.terms-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(6, 50, 63, 0.55);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.terms-link:hover {
+  color: rgba(6, 50, 63, 0.82);
+}
+
+.terms-info-card p {
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .page-header {
@@ -1824,6 +1858,8 @@ body.ratings-open {
   background: #ffffff;
   border: 1px solid rgba(8, 145, 178, 0.22);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  height: auto;
+  max-height: none;
 }
 
 .saved-players-panel[hidden] {
@@ -1888,17 +1924,19 @@ body.ratings-open {
 }
 
 .saved-players-list {
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  box-sizing: border-box;
 }
 
 .saved-players-list.is-scrollable {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .saved-player-row {
