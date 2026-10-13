@@ -119,9 +119,31 @@ body::before {
   overflow-x: hidden;
 }
 
-.page-footer {
+.seo-blurb {
   margin-top: auto;
-  padding-top: 24px;
+  padding-top: 20px;
+  max-width: 520px;
+  color: rgba(6, 50, 63, 0.72);
+}
+
+.seo-blurb h2 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: rgba(6, 50, 63, 0.82);
+}
+
+.seo-blurb p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.page-footer {
+  margin-top: 12px;
+  padding-top: 0;
   padding-bottom: 28px;
   display: flex;
   justify-content: flex-start;
